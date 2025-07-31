@@ -17,7 +17,7 @@ import os
 import sys
 
 import numpy as np
-from silero_vad import load_silero_vad, read_audio, get_speech_timestamps
+# from silero_vad import load_silero_vad, read_audio, get_speech_timestamps
 import torch
 import torchaudio
 import torchaudio.compliance.kaldi as kaldi
@@ -48,7 +48,7 @@ class Speaker:
             configs['model'])(**configs['model_args'])
         load_checkpoint(self.model, model_path)
         self.model.eval()
-        self.vad = load_silero_vad()
+        # self.vad = load_silero_vad()
         self.table = {}
         self.resample_rate = 16000
         self.apply_vad = False

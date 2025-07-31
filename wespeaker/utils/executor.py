@@ -18,20 +18,42 @@ import tableprint as tp
 import torch
 import torchnet as tnt
 from wespeaker.dataset.dataset_utils import apply_cmvn, spec_aug
+from wespeaker.utils.prune_utils import pruning_loss
 
-
-def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
+def run_epoch(dataloader, epoch_iter, model, criterion, optimizers, scheduler,
               margin_scheduler, epoch, logger, scaler, device, configs):
     model.train()
+    
+    optimizer, optimizer_reg = optimizers
+
     # By default use average pooling
     loss_meter = tnt.meter.AverageValueMeter()
     acc_meter = tnt.meter.ClassErrorMeter(accuracy=True)
+
+    # only used when pruning
+    cls_loss_meter = tnt.meter.AverageValueMeter() 
+    pruning_loss_meter = tnt.meter.AverageValueMeter() 
+
+    use_pruning      = configs.get('use_pruning_loss', False)
+    if use_pruning:
+        target_sp        = configs.get('target_sparsity', 0.5)
+        l1, l2           = configs.get('lambda_pair', (1.0, 5.0))
+        orig_params      = float(configs.get('original_ssl_num_params', 1.0))
+        warmup_epochs    = configs.get('sparsity_warmup_epochs', 5)
 
     frontend_type = configs['dataset_args'].get('frontend', 'fbank')
     for i, batch in enumerate(dataloader):
         cur_iter = (epoch - 1) * epoch_iter + i
         scheduler.step(cur_iter)
         margin_scheduler.step(cur_iter)
+
+        if use_pruning:
+            warmup_iters = warmup_epochs * epoch_iter # warmup epochs
+            if cur_iter < warmup_iters:
+                # linearly increase the target sparsity
+                target_sp_cur = target_sp * cur_iter / warmup_iters
+            else:
+                target_sp_cur = target_sp  
 
         utts = batch['key']
         targets = batch['label']
@@ -61,36 +83,71 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
             embeds = outputs[-1] if isinstance(outputs, tuple) else outputs
             outputs = model.module.projection(embeds, targets)
             if isinstance(outputs, tuple):
-                outputs, loss = outputs
+                outputs, cls_loss = outputs
             else:
-                loss = criterion(outputs, targets)
+                cls_loss = criterion(outputs, targets)
+        
+        # ==== pruning regularization ---------------------------------------
+        if use_pruning:
+            cur_params = model.module.frontend.get_num_params()
+            prune_loss, exp_sp = pruning_loss(
+                cur_params, orig_params, target_sp_cur, l1, l2
+            )   
+            total_loss = cls_loss + prune_loss  
+        else:
+            prune_loss, exp_sp = 0.0, None
+            total_loss = cls_loss
 
         # loss, acc
-        loss_meter.add(loss.item())
+        loss_meter.add(total_loss.item())
         acc_meter.add(outputs.cpu().detach().numpy(), targets.cpu().numpy())
+
+        if use_pruning:
+            cls_loss_meter.add(cls_loss.item())
+            pruning_loss_meter.add(prune_loss.item())
 
         # updata the model
         optimizer.zero_grad()
+        if use_pruning:
+            optimizer_reg.zero_grad()
         # scaler does nothing here if enable_amp=False
-        scaler.scale(loss).backward()
+        scaler.scale(total_loss).backward()
+        if use_pruning:
+            scaler.step(optimizer_reg)
+            with torch.no_grad():
+                l1.clamp_(min=0.0)  # clip l1
         scaler.step(optimizer)
         scaler.update()
 
         # log
         if (i + 1) % configs['log_batch_interval'] == 0:
-            logger.info(
-                tp.row((epoch, i + 1, scheduler.get_lr(),
-                        margin_scheduler.get_margin()) +
-                       (loss_meter.value()[0], acc_meter.value()[0]),
-                       width=10,
-                       style='grid'))
+            row_extra = [
+                round(cls_loss_meter.value()[0], 4),
+                round(pruning_loss_meter.value()[0], 4),
+                f"{target_sp_cur:.4f}",
+                f"{exp_sp:.4f}",
+            ] if use_pruning else []
+            row = [epoch, i + 1,
+                   scheduler.get_lr(),
+                   margin_scheduler.get_margin(),
+                   round(loss_meter.value()[0], 4),
+                   round(acc_meter.value()[0], 2)] + row_extra
+            logger.info(tp.row(row, width=10, style='grid'))
 
         if (i + 1) == epoch_iter:
             break
 
-    logger.info(
-        tp.row(
-            (epoch, i + 1, scheduler.get_lr(), margin_scheduler.get_margin()) +
-            (loss_meter.value()[0], acc_meter.value()[0]),
-            width=10,
-            style='grid'))
+    # ========= epoch-end summary =========
+    summary = [epoch, i + 1,
+               scheduler.get_lr(),
+               margin_scheduler.get_margin(),
+               round(loss_meter.value()[0], 4),
+               round(acc_meter.value()[0], 2)]
+    if use_pruning:
+        summary += [
+            round(cls_loss_meter.value()[0], 4),
+            round(pruning_loss_meter.value()[0], 4),
+            f"{target_sp_cur:.4f}",
+            f"{exp_sp:.4f}"
+        ]    
+    logger.info(tp.row(tuple(summary), width=10, style='grid'))

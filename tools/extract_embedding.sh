@@ -19,6 +19,7 @@ exp_dir='exp/XVEC'
 model_path='avg_model.pt'
 data_type='shard'  # shard/raw/feat
 data_list='shard.list'  # shard.list/raw.list/feat.list
+data_lmdb='lmdb'
 wavs_num=
 store_dir=
 batch_size=1
@@ -28,11 +29,14 @@ reverb_data=data/rirs/lmdb
 noise_data=data/musan/lmdb
 aug_prob=0.0
 gpus="[0,1]"
+exp_subdir='embeddings'
+config_path=
+
 
 . tools/parse_options.sh
 set -e
 
-embed_dir=${exp_dir}/embeddings/${store_dir}
+embed_dir=${exp_dir}/${exp_subdir}/${store_dir}
 log_dir=${embed_dir}/log
 [ ! -d ${log_dir} ] && mkdir -p ${log_dir}
 
@@ -49,7 +53,7 @@ for suffix in $(seq 0 $(($nj - 1))); do
   data_list_subfile=${log_dir}/split_${suffix}
   embed_ark=${embed_dir}/xvector_${suffix}.ark
   CUDA_VISIBLE_DEVICES=${gpus[$idx]} python -u wespeaker/bin/extract.py \
-    --config ${exp_dir}/config.yaml \
+    --config ${config_path} \
     --model_path ${model_path} \
     --data_type ${data_type} \
     --data_list ${data_list_subfile} \
@@ -59,6 +63,7 @@ for suffix in $(seq 0 $(($nj - 1))); do
     --reverb_data ${reverb_data} \
     --noise_data ${noise_data} \
     --aug-prob ${aug_prob} \
+    --train_lmdb ${data_lmdb} \
     >${log_dir}/split_${suffix}.log 2>&1 &
 done
 

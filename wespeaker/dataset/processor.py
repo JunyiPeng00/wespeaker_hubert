@@ -30,6 +30,7 @@ from scipy.io import wavfile
 import torch
 import torchaudio
 import torchaudio.compliance.kaldi as kaldi
+import lmdb
 
 AUDIO_FORMAT_SETS = set(['flac', 'mp3', 'm4a', 'ogg', 'opus', 'wav', 'wma'])
 
@@ -116,7 +117,7 @@ def tar_file_and_group(data):
         sample['stream'].close()
 
 
-def parse_raw(data):
+def parse_raw(data, lmdb_file_path=None):
     """ Parse key/wav/spk from json line
 
         Args:
@@ -126,13 +127,20 @@ def parse_raw(data):
             Iterable[{key, wav, spk, sample_rate}]
     """
 
-    def read_audio(wav):
-        if wav.endswith('|'):
-            p = Popen(wav[:-1], shell=True, stdout=PIPE)
-            data = p.stdout.read()
-            waveform, sample_rate = torchaudio.load(io.BytesIO(data))
+    def read_audio(wav, lmdb_file_path):
+        if lmdb_file_path is not None:
+            with lmdb.open(lmdb_file_path, readonly=True, lock=False) as env:
+                with env.begin() as txn:
+                    data = txn.get(wav.encode())
+                    waveform, sample_rate = torchaudio.load(io.BytesIO(data))
+                    # print(f'Load {wav} from lmdb file {lmdb_file_path} with shape {waveform.shape} and sample rate {sample_rate}')
         else:
-            waveform, sample_rate = torchaudio.load(wav)
+            if wav.endswith('|'):
+                p = Popen(wav[:-1], shell=True, stdout=PIPE)
+                data = p.stdout.read()
+                waveform, sample_rate = torchaudio.load(io.BytesIO(data))
+            else:
+                waveform, sample_rate = torchaudio.load(wav)
         return waveform, sample_rate
 
     def apply_vad(waveform, sample_rate, vad):
@@ -155,7 +163,7 @@ def parse_raw(data):
         wav_file = obj['wav']
         spk = obj['spk']
         try:
-            waveform, sample_rate = read_audio(wav_file)
+            waveform, sample_rate = read_audio(wav_file, lmdb_file_path)
             if 'vad' in obj:
                 waveform, sample_rate = apply_vad(waveform, sample_rate,
                                                   obj['vad'])

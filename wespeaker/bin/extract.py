@@ -74,6 +74,7 @@ def extract(config='conf/config.yaml', **kwargs):
                       test_conf,
                       spk2id_dict={},
                       whole_utt=(batch_size == 1),
+                      train_lmdb_file=configs.get('train_lmdb', None),
                       reverb_lmdb_file=configs.get('reverb_data', None),
                       noise_lmdb_file=configs.get('noise_data', None),
                       repeat_dataset=False)

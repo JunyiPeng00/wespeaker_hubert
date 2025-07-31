@@ -34,6 +34,7 @@ from wespeaker.utils.executor import run_epoch
 from wespeaker.utils.file_utils import read_table
 from wespeaker.utils.utils import get_logger, parse_config_or_kwargs, set_seed, \
     spk2id
+from wespeaker.utils.prune_utils import make_pruning_param_groups
 
 
 def train(config='conf/config.yaml', **kwargs):
@@ -56,7 +57,7 @@ def train(config='conf/config.yaml', **kwargs):
     model_dir = os.path.join(configs['exp_dir'], "models")
     if rank == 0:
         try:
-            os.makedirs(model_dir)
+            os.makedirs(model_dir, exist_ok=True)
         except IOError:
             print("[warning] " + model_dir + " already exists !!!")
             if checkpoint is None:
@@ -92,6 +93,7 @@ def train(config='conf/config.yaml', **kwargs):
                             configs['train_data'],
                             configs['dataset_args'],
                             spk2id_dict,
+                            train_lmdb_file=configs.get('train_lmdb', None),
                             reverb_lmdb_file=configs.get('reverb_data', None),
                             noise_lmdb_file=configs.get('noise_data', None))
     train_dataloader = DataLoader(train_dataset, **configs['dataloader_args'])
@@ -106,8 +108,23 @@ def train(config='conf/config.yaml', **kwargs):
         logger.info("train dataloaders created")
         logger.info('epoch iteration number: {}'.format(epoch_iter))
 
+    use_pruning = configs.get("use_pruning_loss", False)
+    if use_pruning:
+        if rank == 0:
+            logger.info("<== Pruning ==>")
+            logger.info("use pruning loss")
+            # make pruning param groups
+            prune_defaults = {
+                'use_pruning_loss'       : False,  # disabled by default; enable with --use_pruning_loss True
+                'target_sparsity'        : 0.5,    # final sparsity ratio you want to reach
+                'sparsity_warmup_epochs' : 7,      # sparsity warmup epochs
+            }
+            for k, v in prune_defaults.items():
+                configs.setdefault(k, v)
+
     # model: frontend (optional) => speaker model => projection layer
-    logger.info("<== Model ==>")
+    if rank == 0:
+        logger.info("<== Model ==>")
     frontend_type = configs['dataset_args'].get('frontend', 'fbank')
     if frontend_type != "fbank":
         frontend_args = frontend_type + "_args"
@@ -119,9 +136,13 @@ def train(config='conf/config.yaml', **kwargs):
         model.add_module("frontend", frontend)
     else:
         model = get_speaker_model(configs['model'])(**configs['model_args'])
+    
+    configs['original_ssl_num_params'] = sum(param.numel() for param in model.frontend.parameters())
     if rank == 0:
         num_params = sum(param.numel() for param in model.parameters())
         logger.info('speaker_model size: {}'.format(num_params))
+        num_params_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        logger.info('Trainable parameters: {}'.format(num_params_trainable))
     # For model_init, only frontend and speaker model are needed !!!
     if configs['model_init'] is not None:
         logger.info('Load initial model from {}'.format(configs['model_init']))
@@ -168,7 +189,8 @@ def train(config='conf/config.yaml', **kwargs):
 
     # ddp_model
     model.cuda()
-    ddp_model = torch.nn.parallel.DistributedDataParallel(model)
+    ddp_model = torch.nn.parallel.DistributedDataParallel(model,find_unused_parameters=True)
+    ddp_model._set_static_graph()
     device = torch.device("cuda")
 
     criterion = getattr(torch.nn, configs['loss'])(**configs['loss_args'])
@@ -176,10 +198,32 @@ def train(config='conf/config.yaml', **kwargs):
         logger.info("<== Loss ==>")
         logger.info("loss criterion is: " + configs['loss'])
 
+    
     configs['optimizer_args']['lr'] = configs['scheduler_args']['initial_lr']
-    optimizer = getattr(torch.optim,
-                        configs['optimizer'])(ddp_model.parameters(),
-                                              **configs['optimizer_args'])
+
+    if configs.get('use_pruning_loss', False):
+        reg_lr = configs.get('initial_reg_lr', 2e-2)
+
+        p_groups, lambda_pair = make_pruning_param_groups(
+            ddp_model,
+            cls_lr=configs['optimizer_args']['lr'],
+            reg_lr=reg_lr,
+        )
+
+        pg_main   = [pg for pg in p_groups if pg['name']=='main']
+        pg_others = [pg for pg in p_groups if pg['name']!='main']
+        
+        opt_kwargs = {k: v for k, v in configs['optimizer_args'].items() if k not in ('lr', 'reg_lr')}
+        optimizer = getattr(torch.optim, configs['optimizer'])(pg_main,   **opt_kwargs)
+        optimizer_reg  = getattr(torch.optim, configs['optimizer'])(pg_others, **opt_kwargs)
+        configs['reg_lr'] = reg_lr 
+        configs['lambda_pair'] = lambda_pair
+    else:
+        optimizer = getattr(torch.optim,
+                            configs['optimizer'])(ddp_model.parameters(),
+                                                **configs['optimizer_args'])
+        optimizer_reg = None
+        
     if rank == 0:
         logger.info("<== Optimizer ==>")
         logger.info("optimizer is: " + configs['optimizer'])
@@ -207,9 +251,10 @@ def train(config='conf/config.yaml', **kwargs):
 
     # save config.yaml
     if rank == 0:
+        cfg_to_save = {k: v for k, v in configs.items() if k != "lambda_pair"}
         saved_config_path = os.path.join(configs['exp_dir'], 'config.yaml')
         with open(saved_config_path, 'w') as fout:
-            data = yaml.dump(configs)
+            data = yaml.dump(cfg_to_save)
             fout.write(data)
 
     # training
@@ -217,6 +262,9 @@ def train(config='conf/config.yaml', **kwargs):
     if rank == 0:
         logger.info("<========== Training process ==========>")
         header = ['Epoch', 'Batch', 'Lr', 'Margin', 'Loss', "Acc"]
+        if use_pruning:
+            header += ["loss_cls", "loss_reg", "spa_tgt", "spa_cur"] 
+
         for line in tp.header(header, width=10, style='grid').split('\n'):
             logger.info(line)
     dist.barrier(device_ids=[gpu])  # synchronize here
@@ -229,7 +277,7 @@ def train(config='conf/config.yaml', **kwargs):
                   epoch_iter,
                   ddp_model,
                   criterion,
-                  optimizer,
+                  (optimizer, optimizer_reg),
                   scheduler,
                   margin_scheduler,
                   epoch,

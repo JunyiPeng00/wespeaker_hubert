@@ -138,6 +138,7 @@ def Dataset(data_type,
             configs,
             spk2id_dict,
             whole_utt=False,
+            train_lmdb_file=None,
             reverb_lmdb_file=None,
             noise_lmdb_file=None,
             repeat_dataset=True):
@@ -169,7 +170,7 @@ def Dataset(data_type,
         dataset = Processor(dataset, processor.url_opener)
         dataset = Processor(dataset, processor.tar_file_and_group)
     elif data_type == 'raw':
-        dataset = Processor(dataset, processor.parse_raw)
+        dataset = Processor(dataset, processor.parse_raw, lmdb_file_path=train_lmdb_file)
     else:
         dataset = Processor(dataset, processor.parse_feat)
 

@@ -261,19 +261,64 @@ def ResNet293(feat_dim, embed_dim, pooling_func='TSTP', two_emb_layer=False):
 
 
 if __name__ == '__main__':
-    x = torch.zeros(1, 200, 80)
-    model = ResNet34(feat_dim=80, embed_dim=256, two_emb_layer=False)
+    import time
+    x = torch.zeros(1, 400, 80)
+    model = ResNet50(feat_dim=80, embed_dim=256, two_emb_layer=False)
     model.eval()
     out = model(x)
     print(out[-1].size())
 
     num_params = sum(p.numel() for p in model.parameters())
     print("{} M".format(num_params / 1e6))
+    from thop import profile
+    x_np = torch.randn(1, 400, 80)
+    flops, params = profile(model, inputs=(x_np, ))
+    print("FLOPs: {} G, Params: {} M".format(flops / 1e9, params / 1e6))
 
-    # from thop import profile
-    # x_np = torch.randn(1, 200, 80)
-    # flops, params = profile(model, inputs=(x_np, ))
-    # print("FLOPs: {} G, Params: {} M".format(flops / 1e9, params / 1e6))
+    if torch.cuda.is_available():
+        print("\n--- Measuring GPU Inference Time ---")
+        model.eval().cuda()
+        # Using a smaller batch size for the dummy input to prevent potential OOM errors
+        dummy_input_gpu = torch.randn(16, 100 * 20, 80).cuda()
+        with torch.no_grad():
+            # Warm-up iterations
+            for _ in range(10):
+                _ = model(dummy_input_gpu)
 
+            torch.cuda.synchronize() # Wait for warm-up to finish
+            start_event = torch.cuda.Event(enable_timing=True)
+            end_event = torch.cuda.Event(enable_timing=True)
+
+            start_event.record()
+            _ = model(dummy_input_gpu)
+            end_event.record()
+
+            torch.cuda.synchronize() # Wait for the forward pass to complete
+            latency_ms_gpu = start_event.elapsed_time(end_event)
+            print(f"Inference Latency (GPU): {latency_ms_gpu:.2f} ms")
+        print("-" * 30)
+    else:
+        print("\nCUDA not available, skipping GPU performance measurement.")
+
+
+    # --- CPU Inference Performance ---
+    print("\n--- Measuring CPU Inference Time ---")
+    model.eval().cpu()
+    # Using a smaller batch size consistent with GPU test
+    dummy_input_cpu = torch.randn(16, 100 * 20, 80)
+
+    with torch.no_grad():
+        # Warm-up iterations
+        for _ in range(5):
+            _ = model(dummy_input_cpu)
+
+        start_time = time.perf_counter()
+        _ = model(dummy_input_cpu)
+        end_time = time.perf_counter()
+
+        latency_ms_cpu = (end_time - start_time) * 1000
+        print(f"Inference Latency (CPU): {latency_ms_cpu:.2f} ms")
+    print("-" * 30)
+    
     # from torchinfo import summary
     # summary(model, (16, 100, 80))
