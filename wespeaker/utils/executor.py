@@ -18,16 +18,39 @@ import tableprint as tp
 import torch
 import torchnet as tnt
 from wespeaker.dataset.dataset_utils import apply_cmvn, spec_aug
+from wespeaker.utils.prune_utils import pruning_loss, get_progressive_sparsity
 
 
 def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
               margin_scheduler, epoch, logger, scaler, device, configs):
     model.train()
+    # Accept either a single optimizer or a tuple (optimizer, optimizer_reg)
+    if isinstance(optimizer, tuple):
+        optimizer, optimizer_reg = optimizer
+    else:
+        optimizer_reg = None
+
     # By default use average pooling
     loss_meter = tnt.meter.AverageValueMeter()
     acc_meter = tnt.meter.ClassErrorMeter(accuracy=True)
 
+    # Additional meters for pruning
+    cls_loss_meter = tnt.meter.AverageValueMeter()
+    pruning_loss_meter = tnt.meter.AverageValueMeter()
+
+    # Pruning configuration
+    use_pruning = configs.get('use_pruning_loss', False)
+    if use_pruning:
+        target_sp = configs.get('target_sparsity', 0.5)
+        l1, l2 = configs.get('lambda_pair', (1.0, 5.0))
+        orig_params = float(configs.get('original_ssl_num_params', 1.0))
+        warmup_epochs = configs.get('sparsity_warmup_epochs', 5)
+        sparsity_schedule = configs.get('sparsity_schedule', 'cosine')
+        min_sparsity = configs.get('min_sparsity', 0.0)
+
     frontend_type = configs['dataset_args'].get('frontend', 'fbank')
+    # Optional two-phase LSQ controller from configs
+    lsq_controller = configs.get('lsq_controller', None)
     for i, batch in enumerate(dataloader):
         cur_iter = (epoch - 1) * epoch_iter + i
         scheduler.step(cur_iter)
@@ -36,7 +59,7 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
         utts = batch['key']
         targets = batch['label']
         targets = targets.long().to(device)  # (B)
-        if frontend_type == 'fbank':
+        if frontend_type == 'fbank' or str(frontend_type).startswith('lfcc'):
             features = batch['feat']  # (B,T,F)
             features = features.float().to(device)
         else:  # 's3prl'
@@ -61,36 +84,101 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
             embeds = outputs[-1] if isinstance(outputs, tuple) else outputs
             outputs = model.module.projection(embeds, targets)
             if isinstance(outputs, tuple):
-                outputs, loss = outputs
+                outputs, cls_loss = outputs
             else:
-                loss = criterion(outputs, targets)
+                cls_loss = criterion(outputs, targets)
+
+        # Prepare pruning target sparsity for current iteration
+        if use_pruning:
+            cur_iter = (epoch - 1) * epoch_iter + i
+            warmup_iters = warmup_epochs * epoch_iter
+            if cur_iter < warmup_iters:
+                target_sp_cur = get_progressive_sparsity(
+                    current_iter=cur_iter,
+                    total_warmup_iters=warmup_iters,
+                    target_sparsity=target_sp,
+                    schedule_type=sparsity_schedule,
+                    min_sparsity=min_sparsity,
+                )
+            else:
+                target_sp_cur = target_sp
+
+            # Expected current params; rely on frontend for pruning stats when available
+            try:
+                cur_params = model.module.frontend.get_num_params()
+            except Exception:
+                try:
+                    cur_params = model.frontend.get_num_params()
+                except Exception:
+                    cur_params = orig_params
+
+            prune_reg, exp_sp = pruning_loss(cur_params, orig_params, target_sp_cur, l1, l2)
+            total_loss = cls_loss + prune_reg
+        else:
+            prune_reg, exp_sp, target_sp_cur = 0.0, None, None
+            total_loss = cls_loss
 
         # loss, acc
-        loss_meter.add(loss.item())
+        loss_meter.add(total_loss.item())
         acc_meter.add(outputs.cpu().detach().numpy(), targets.cpu().numpy())
+        if use_pruning:
+            cls_loss_meter.add(cls_loss.item())
+            pruning_loss_meter.add(prune_reg.item())
 
         # updata the model
         optimizer.zero_grad()
+        if optimizer_reg is not None:
+            optimizer_reg.zero_grad()
+
+        # Two-phase LSQ: unfreeze and gradient clipping if controller provided
+        if lsq_controller is not None:
+            try:
+                lsq_controller.maybe_unfreeze((epoch - 1) * epoch_iter + i)
+            except Exception:
+                pass
+
         # scaler does nothing here if enable_amp=False
-        scaler.scale(loss).backward()
+        scaler.scale(total_loss).backward()
+
+        if lsq_controller is not None:
+            try:
+                lsq_controller.clip_gradients()
+            except Exception:
+                pass
+
+        if optimizer_reg is not None:
+            scaler.step(optimizer_reg)
+            try:
+                with torch.no_grad():
+                    l1.clamp_(min=0.0)  # Ensure lambda1 >= 0 if present
+            except Exception:
+                pass
         scaler.step(optimizer)
         scaler.update()
 
         # log
         if (i + 1) % configs['log_batch_interval'] == 0:
-            logger.info(
-                tp.row((epoch, i + 1, scheduler.get_lr(),
-                        margin_scheduler.get_margin()) +
-                       (loss_meter.value()[0], acc_meter.value()[0]),
-                       width=10,
-                       style='grid'))
+            row = [epoch, i + 1, scheduler.get_lr(), margin_scheduler.get_margin(),
+                   loss_meter.value()[0], acc_meter.value()[0]]
+            if use_pruning:
+                row += [
+                    round(cls_loss_meter.value()[0], 4),
+                    round(pruning_loss_meter.value()[0], 4),
+                    f"{target_sp_cur:.4f}",
+                    f"{exp_sp:.4f}",
+                ]
+            logger.info(tp.row(tuple(row), width=10, style='grid'))
 
         if (i + 1) == epoch_iter:
             break
 
-    logger.info(
-        tp.row(
-            (epoch, i + 1, scheduler.get_lr(), margin_scheduler.get_margin()) +
-            (loss_meter.value()[0], acc_meter.value()[0]),
-            width=10,
-            style='grid'))
+    summary = [epoch, i + 1, scheduler.get_lr(), margin_scheduler.get_margin(),
+               loss_meter.value()[0], acc_meter.value()[0]]
+    if use_pruning:
+        summary += [
+            round(cls_loss_meter.value()[0], 4),
+            round(pruning_loss_meter.value()[0], 4),
+            f"{target_sp_cur:.4f}",
+            f"{exp_sp:.4f}",
+        ]
+    logger.info(tp.row(tuple(summary), width=10, style='grid'))

@@ -116,23 +116,30 @@ def tar_file_and_group(data):
         sample['stream'].close()
 
 
-def parse_raw(data):
-    """ Parse key/wav/spk from json line
+def parse_raw(data, lmdb_file_path=None):
+    """ Parse key/wav/lab from json line
 
         Args:
-            data: Iterable[str], str is a json line has key/wav/spk
-
+            data: Iterable[str], str is a json line has key/wav/lab
+            lmdb_file_path (str, optional): Path to LMDB file containing audio data. 
+                If provided, audio will be loaded from LMDB using "wav" as the key.
         Returns:
-            Iterable[{key, wav, spk, sample_rate}]
+            Iterable[{key, wav, lab, sample_rate}]
     """
 
-    def read_audio(wav):
-        if wav.endswith('|'):
-            p = Popen(wav[:-1], shell=True, stdout=PIPE)
-            data = p.stdout.read()
-            waveform, sample_rate = torchaudio.load(io.BytesIO(data))
+    def read_audio(wav, lmdb_file_path):
+        if lmdb_file_path is not None:
+            with lmdb.open(lmdb_file_path, readonly=True, lock=False) as env:
+                with env.begin() as txn:
+                    data = txn.get(wav.encode())
+                    waveform, sample_rate = torchaudio.load(io.BytesIO(data))
         else:
-            waveform, sample_rate = torchaudio.load(wav)
+            if wav.endswith('|'):
+                p = Popen(wav[:-1], shell=True, stdout=PIPE)
+                data = p.stdout.read()
+                waveform, sample_rate = torchaudio.load(io.BytesIO(data))
+            else:
+                waveform, sample_rate = torchaudio.load(wav)
         return waveform, sample_rate
 
     def apply_vad(waveform, sample_rate, vad):
@@ -155,7 +162,7 @@ def parse_raw(data):
         wav_file = obj['wav']
         spk = obj['spk']
         try:
-            waveform, sample_rate = read_audio(wav_file)
+            waveform, sample_rate = read_audio(wav_file, lmdb_file_path)
             if 'vad' in obj:
                 waveform, sample_rate = apply_vad(waveform, sample_rate,
                                                   obj['vad'])
