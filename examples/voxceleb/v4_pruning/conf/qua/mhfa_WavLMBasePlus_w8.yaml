@@ -112,6 +112,6 @@ preserve_hp_gating: True
 # FIXED: LSQ training parameters
 per_channel_weights: True  # Per-channel quantization for better accuracy
 per_channel_activations: False
-freeze_lsq_steps: 3000  # No freezing - start training step_size immediately
+freeze_lsq_steps: 30000  # No freezing - start training step_size immediately
 lsq_step_lr: 1.0e-5  # Increased from 1e-5 to match main learning rate
 grad_clip_norm: 1.0

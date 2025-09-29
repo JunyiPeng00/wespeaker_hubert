@@ -10,7 +10,7 @@
 #SBATCH --time=47:59:00
 #SBATCH --output=log/output_%x_%j.txt
 #SBATCH --error=log/error_%x_%j.txt
-#SBATCH --array=1-1
+#SBATCH --array=1-4
 
 module load LUMI PyTorch/2.2.2-rocm-5.6.1-python-3.10-singularity-20240617
 # module load LUMI PyTorch/2.7.0-rocm-6.2.4-python-3.12-singularity-20250527

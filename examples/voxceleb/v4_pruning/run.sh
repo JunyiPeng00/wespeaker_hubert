@@ -17,19 +17,19 @@ mkdir -p "${my_folder}"
 #   -e "${my_folder}/error_%x_%j_%a.txt" \
 #     submit_vox2.sh
 
-# sbatch -J "WeSpk_Qua_Vox2" \
-#   --time "24:00:00" \
-#   --array "1-4" \
-#   -o "${my_folder}/output_%x_%j_%a.txt" \
-#   -e "${my_folder}/error_%x_%j_%a.txt" \
-#     submit_vox2_qua.sh
-
-sbatch -J "WeSpk_Pruning_Vox2" \
+sbatch -J "WeSpk_Qua_Vox2" \
   --time "24:00:00" \
-  --array "1-1" \
+  --array "4-4" \
   -o "${my_folder}/output_%x_%j_%a.txt" \
   -e "${my_folder}/error_%x_%j_%a.txt" \
-    submit_vox2_pruning.sh
+    submit_vox2_qua.sh
+
+# sbatch -J "WeSpk_Pruning_Vox2" \
+#   --time "24:00:00" \
+#   --array "6-6" \
+#   -o "${my_folder}/output_%x_%j_%a.txt" \
+#   -e "${my_folder}/error_%x_%j_%a.txt" \
+#     submit_vox2_pruning.sh
 
 # sbatch -J "WeSpk_Pruning_CN" \
 #   --time "24:00:00" \

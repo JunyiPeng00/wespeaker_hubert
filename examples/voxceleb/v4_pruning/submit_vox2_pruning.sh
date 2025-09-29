@@ -19,6 +19,11 @@ module load LUMI PyTorch/2.2.2-rocm-5.6.1-python-3.10-singularity-20240617
 
 configs=(
     mhfa_WavLMBasePlus_p70
+    mhfa_WavLMBasePlus_p70_s1
+    mhfa_WavLMBasePlus_p70_s2
+    mhfa_WavLMBasePlus_p70_s3
+    mhfa_WavLMBasePlus_p70_s4
+    mhfa_WavLMBasePlus_p70_e
 )
 config=${configs[$SLURM_ARRAY_TASK_ID-1]} 
 
