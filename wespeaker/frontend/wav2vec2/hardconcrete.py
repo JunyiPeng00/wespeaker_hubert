@@ -36,7 +36,10 @@ class HardConcrete(nn.Module):
         init_std: float = 0.01,
         temperature: float = 2/3,     # from CoFi
         stretch: float = 0.1,
-        eps: float = 1e-6
+        eps: float = 1e-6,
+        min_temperature: float = 0.1,
+        temperature_decay: float = 0.95,
+        temperature_decay_freq: int = 100,
     ) -> None:
         """Initialize the HardConcrete module.
         
@@ -44,11 +47,14 @@ class HardConcrete(nn.Module):
             n_in: The number of hard concrete variables in this mask.
             init_mean: Initial drop rate for hard concrete parameter (0.0 to 1.0).
             init_std: Standard deviation for initializing hard concrete parameters.
-            temperature: Temperature parameter controlling distribution sharpness.
+            temperature: Initial temperature parameter controlling distribution sharpness.
                 Lower values make the distribution more peaked (closer to binary).
             stretch: Stretch factor for the sampling interval. Values are sampled
                 from [-stretch, 1 + stretch] and then clamped to [0, 1].
             eps: Small epsilon value for numerical stability in sampling.
+            min_temperature: Minimum temperature value for annealing.
+            temperature_decay: Temperature decay factor for annealing.
+            temperature_decay_freq: Frequency (in iterations) to decay temperature.
         """
         super().__init__()
 
@@ -60,6 +66,13 @@ class HardConcrete(nn.Module):
         self.init_mean = init_mean
         self.init_std = init_std
         self.bias = -self.beta * math.log(-self.limit_l / self.limit_r)
+
+        # Temperature annealing parameters
+        self.initial_temperature = temperature
+        self.min_temperature = min_temperature
+        self.temperature_decay = temperature_decay
+        self.temperature_decay_freq = temperature_decay_freq
+        self.current_iter = 0
 
         self.eps = eps
         self.compiled_mask = None
@@ -73,11 +86,32 @@ class HardConcrete(nn.Module):
         proper distribution of initial pruning probabilities.
         """
         self.compiled_mask = None
+        self.current_iter = 0
         # Convert init_mean to logit space for proper initialization
         mean = math.log(1 - self.init_mean) - math.log(self.init_mean)
         # Alternative initialization (commented out):
         # mean = 5  # From LLM-Shearing implementation
         self.log_alpha.data.normal_(mean, self.init_std)
+    
+    def update_temperature(self, current_iter: int) -> None:
+        """Update temperature based on current iteration for annealing.
+        
+        Args:
+            current_iter: Current training iteration.
+        """
+        self.current_iter = current_iter
+        
+        if current_iter % self.temperature_decay_freq == 0:
+            # Decay temperature
+            new_temperature = max(
+                self.initial_temperature * (self.temperature_decay ** (current_iter // self.temperature_decay_freq)),
+                self.min_temperature
+            )
+            self.beta = new_temperature
+            # Update bias with new temperature
+            self.bias = -self.beta * math.log(-self.limit_l / self.limit_r)
+            # Reset compiled mask to force recomputation
+            self.compiled_mask = None
 
     def l0_norm(self) -> torch.Tensor:
         """Compute the expected L0 norm of this mask.
@@ -90,16 +124,23 @@ class HardConcrete(nn.Module):
         """
         return (self.log_alpha + self.bias).sigmoid().sum()
 
-    def forward(self) -> torch.Tensor:
+    def forward(self, current_iter: int | None = None) -> torch.Tensor:
         """Sample a hard concrete mask.
         
         During training, samples a stochastic mask using the reparameterization
         trick. During evaluation, uses a deterministic approximation based on
         the expected sparsity.
         
+        Args:
+            current_iter: Current training iteration for temperature annealing.
+                If None, uses the stored current_iter.
+        
         Returns:
             A binary-like mask tensor of shape (n_in,).
         """
+        if current_iter is not None:
+            self.update_temperature(current_iter)
+        
         if self.training:
             # Reset the compiled mask for fresh sampling
             self.compiled_mask = None

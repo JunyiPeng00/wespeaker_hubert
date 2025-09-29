@@ -35,7 +35,7 @@ from wespeaker.utils.executor import run_epoch
 from wespeaker.utils.file_utils import read_table
 from wespeaker.utils.utils import get_logger, parse_config_or_kwargs, set_seed, \
     spk2id
-from wespeaker.utils.prune_utils import make_pruning_param_groups
+from wespeaker.utils.prune_utils import make_pruning_param_groups, StochasticWeightAveraging
 
 
 def train(config='conf/config.yaml', **kwargs):
@@ -56,6 +56,16 @@ def train(config='conf/config.yaml', **kwargs):
             'sparsity_warmup_epochs': 7,
             'sparsity_schedule': 'cosine',
             'min_sparsity': 0.0,
+            'plateau_start_ratio': 0.9,
+            'use_plateau_lr_decay': False,
+            'lr_decay_factor': 0.1,
+            'min_lr_ratio': 0.01,
+            'use_swa': False,
+            'swa_start_ratio': 0.9,
+            'swa_update_freq': 10,
+            'min_temperature': 0.1,
+            'temperature_decay': 0.95,
+            'temperature_decay_freq': 100,
         }
         for k, v in prune_defaults.items():
             configs.setdefault(k, v)
@@ -193,6 +203,10 @@ def train(config='conf/config.yaml', **kwargs):
                     'sparsity_warmup_epochs': configs.get('sparsity_warmup_epochs', 7),
                     'sparsity_schedule': configs.get('sparsity_schedule', 'cosine'),
                     'min_sparsity': configs.get('min_sparsity', 0.0),
+                    'plateau_start_ratio': configs.get('plateau_start_ratio', 0.9),
+                    'min_temperature': configs.get('min_temperature', 0.1),
+                    'temperature_decay': configs.get('temperature_decay', 0.95),
+                    'temperature_decay_freq': configs.get('temperature_decay_freq', 100),
                 }
                 if checkpoint is not None:
                     load_checkpoint(model, checkpoint)
@@ -418,6 +432,20 @@ def train(config='conf/config.yaml', **kwargs):
             except Exception:
                 pass
 
+    # Initialize SWA if enabled
+    swa = None
+    if configs.get('use_swa', False):
+        total_iters = configs['num_epochs'] * epoch_iter
+        swa_start_iter = int(total_iters * configs.get('swa_start_ratio', 0.9))
+        swa_update_freq = configs.get('swa_update_freq', 10)
+        swa = StochasticWeightAveraging(
+            model=ddp_model,
+            start_iter=swa_start_iter,
+            update_freq=swa_update_freq
+        )
+        if rank == 0:
+            logger.info(f"SWA enabled: start_iter={swa_start_iter}, update_freq={swa_update_freq}")
+
     # save config.yaml
     if rank == 0:  
         cfg_to_save = {k: v for k, v in configs.items() if k != "lambda_pair" and k != "lsq_controller"}
@@ -453,7 +481,8 @@ def train(config='conf/config.yaml', **kwargs):
                   logger,
                   scaler,
                   device=device,
-                  configs=configs)
+                  configs=configs,
+                  swa=swa)
 
         if rank == 0:
             if epoch % configs['save_epoch_interval'] == 0 or epoch > configs[
@@ -461,6 +490,13 @@ def train(config='conf/config.yaml', **kwargs):
                 save_checkpoint(
                     model, os.path.join(model_dir,
                                         'model_{}.pt'.format(epoch)))
+
+    # Apply SWA at the end of training
+    if swa is not None and rank == 0:
+        logger.info("Applying SWA to final model...")
+        swa.apply_swa()
+        save_checkpoint(model, os.path.join(model_dir, 'model_swa.pt'))
+        logger.info("SWA model saved as model_swa.pt")
 
     if rank == 0:
         os.symlink('model_{}.pt'.format(configs['num_epochs']),

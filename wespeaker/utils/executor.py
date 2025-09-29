@@ -18,11 +18,12 @@ import tableprint as tp
 import torch
 import torchnet as tnt
 from wespeaker.dataset.dataset_utils import apply_cmvn, spec_aug
-from wespeaker.utils.prune_utils import pruning_loss, get_progressive_sparsity
+from wespeaker.utils.prune_utils import pruning_loss, get_progressive_sparsity, get_learning_rate_with_plateau_decay, StochasticWeightAveraging
 
 
 def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
-              margin_scheduler, epoch, logger, scaler, device, configs):
+              margin_scheduler, epoch, logger, scaler, device, configs, 
+              swa: StochasticWeightAveraging | None = None):
     model.train()
     # Accept either a single optimizer or a tuple (optimizer, optimizer_reg)
     if isinstance(optimizer, tuple):
@@ -47,6 +48,9 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
         warmup_epochs = configs.get('sparsity_warmup_epochs', 5)
         sparsity_schedule = configs.get('sparsity_schedule', 'cosine')
         min_sparsity = configs.get('min_sparsity', 0.0)
+        total_epochs = configs.get('num_epochs', 100)
+        total_iters = total_epochs * epoch_iter
+        plateau_start_ratio = configs.get('plateau_start_ratio', 0.9)
 
     frontend_type = configs['dataset_args'].get('frontend', 'fbank')
     # Optional two-phase LSQ controller from configs
@@ -99,9 +103,19 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
                     target_sparsity=target_sp,
                     schedule_type=sparsity_schedule,
                     min_sparsity=min_sparsity,
+                    total_iters=total_iters,
+                    plateau_start_ratio=plateau_start_ratio,
                 )
             else:
-                target_sp_cur = target_sp
+                target_sp_cur = get_progressive_sparsity(
+                    current_iter=cur_iter,
+                    total_warmup_iters=warmup_iters,
+                    target_sparsity=target_sp,
+                    schedule_type=sparsity_schedule,
+                    min_sparsity=min_sparsity,
+                    total_iters=total_iters,
+                    plateau_start_ratio=plateau_start_ratio,
+                )
 
             # Expected current params; rely on frontend for pruning stats when available
             try:
@@ -155,6 +169,25 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
                 pass
         scaler.step(optimizer)
         scaler.update()
+
+        # Update learning rate with plateau decay if enabled
+        if configs.get('use_plateau_lr_decay', False):
+            cur_iter = (epoch - 1) * epoch_iter + i
+            new_lr = get_learning_rate_with_plateau_decay(
+                current_iter=cur_iter,
+                total_iters=total_iters,
+                initial_lr=configs.get('lr', 2e-4),
+                plateau_start_ratio=plateau_start_ratio,
+                decay_factor=configs.get('lr_decay_factor', 0.1),
+                min_lr_ratio=configs.get('min_lr_ratio', 0.01),
+            )
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = new_lr
+
+        # Update SWA if enabled
+        if swa is not None:
+            cur_iter = (epoch - 1) * epoch_iter + i
+            swa.update(cur_iter)
 
         # log
         if (i + 1) % configs['log_batch_interval'] == 0:
