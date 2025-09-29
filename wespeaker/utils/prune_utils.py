@@ -92,6 +92,8 @@ def get_progressive_sparsity(
     target_sparsity: float,
     schedule_type: str = "cosine",
     min_sparsity: float = 0.0,
+    total_iters: int | None = None,
+    plateau_start_ratio: float = 0.9,
 ) -> float:
     """Calculate progressive sparsity based on training progress.
     
@@ -102,8 +104,10 @@ def get_progressive_sparsity(
         current_iter: Current training iteration.
         total_warmup_iters: Total number of warmup iterations.
         target_sparsity: Final target sparsity level (0.0 to 1.0).
-        schedule_type: Type of schedule ('linear', 'cosine', 'exponential', 'sigmoid').
+        schedule_type: Type of schedule ('linear', 'cosine', 'exponential', 'sigmoid', 'cosine_plateau').
         min_sparsity: Minimum sparsity at the beginning (0.0 to 1.0).
+        total_iters: Total training iterations (for plateau scheduling).
+        plateau_start_ratio: When to start plateau phase (0.0 to 1.0 of total_iters).
     
     Returns:
         Current target sparsity value (0.0 to 1.0).
@@ -112,7 +116,17 @@ def get_progressive_sparsity(
         ValueError: If schedule_type is not supported.
     """
     if current_iter >= total_warmup_iters:
-        return target_sparsity
+        # After warmup, check if we should use plateau scheduling
+        if schedule_type == "cosine_plateau" and total_iters is not None:
+            plateau_start_iter = int(total_iters * plateau_start_ratio)
+            if current_iter >= plateau_start_iter:
+                # Plateau phase: maintain target sparsity
+                return target_sparsity
+            else:
+                # Between warmup and plateau: maintain target sparsity
+                return target_sparsity
+        else:
+            return target_sparsity
     
     progress = current_iter / total_warmup_iters
     sparsity_range = target_sparsity - min_sparsity
@@ -123,6 +137,12 @@ def get_progressive_sparsity(
     elif schedule_type == "cosine":
         # Cosine annealing schedule - smooth start and end
         # Standard cosine annealing: 0.5 * (1 + cos(π * (1 - progress)))
+        current_sparsity = min_sparsity + sparsity_range * (
+            0.5 * (1 + math.cos(math.pi * (1 - progress)))
+        )
+        
+    elif schedule_type == "cosine_plateau":
+        # Enhanced cosine with plateau: cosine during warmup, then plateau
         current_sparsity = min_sparsity + sparsity_range * (
             0.5 * (1 + math.cos(math.pi * (1 - progress)))
         )
@@ -138,7 +158,7 @@ def get_progressive_sparsity(
         )
         
     else:
-        supported_types = ["linear", "cosine", "exponential", "sigmoid"]
+        supported_types = ["linear", "cosine", "cosine_plateau", "exponential", "sigmoid"]
         raise ValueError(
             f"Unknown schedule type: {schedule_type}. "
             f"Supported types: {supported_types}"
@@ -182,3 +202,112 @@ def pruning_loss(
     )
     
     return regularization_term, expected_sparsity
+
+
+def get_learning_rate_with_plateau_decay(
+    current_iter: int,
+    total_iters: int,
+    initial_lr: float,
+    plateau_start_ratio: float = 0.9,
+    decay_factor: float = 0.1,
+    min_lr_ratio: float = 0.01,
+) -> float:
+    """Calculate learning rate with plateau decay for stable convergence.
+    
+    This function implements a learning rate schedule that maintains the initial
+    learning rate during most of training, then applies a small decay in the
+    final plateau phase for stable convergence.
+    
+    Args:
+        current_iter: Current training iteration.
+        total_iters: Total training iterations.
+        initial_lr: Initial learning rate.
+        plateau_start_ratio: When to start plateau phase (0.0 to 1.0 of total_iters).
+        decay_factor: Learning rate decay factor in plateau phase.
+        min_lr_ratio: Minimum learning rate as ratio of initial_lr.
+    
+    Returns:
+        Current learning rate value.
+    """
+    plateau_start_iter = int(total_iters * plateau_start_ratio)
+    min_lr = initial_lr * min_lr_ratio
+    
+    if current_iter < plateau_start_iter:
+        return initial_lr
+    else:
+        # Linear decay in plateau phase
+        plateau_progress = (current_iter - plateau_start_iter) / (total_iters - plateau_start_iter)
+        plateau_lr = initial_lr * (decay_factor + (1.0 - decay_factor) * (1.0 - plateau_progress))
+        return max(plateau_lr, min_lr)
+
+
+class StochasticWeightAveraging:
+    """Stochastic Weight Averaging (SWA) for model parameter averaging.
+    
+    This class implements SWA to average model parameters over multiple
+    checkpoints during the plateau phase for improved generalization.
+    """
+    
+    def __init__(self, model: nn.Module, start_iter: int, update_freq: int = 1):
+        """Initialize SWA.
+        
+        Args:
+            model: The model to apply SWA to.
+            start_iter: Iteration to start SWA.
+            update_freq: Frequency to update SWA parameters.
+        """
+        self.model = model
+        self.start_iter = start_iter
+        self.update_freq = update_freq
+        self.swa_params = {}
+        self.n_averaged = 0
+        self._initialized = False
+        
+    def update(self, current_iter: int) -> None:
+        """Update SWA parameters if conditions are met.
+        
+        Args:
+            current_iter: Current training iteration.
+        """
+        if current_iter < self.start_iter:
+            return
+            
+        if current_iter % self.update_freq != 0:
+            return
+            
+        if not self._initialized:
+            # Initialize SWA parameters
+            for name, param in self.model.named_parameters():
+                if param.requires_grad:
+                    self.swa_params[name] = param.data.clone()
+            self._initialized = True
+            self.n_averaged = 1
+        else:
+            # Update SWA parameters
+            for name, param in self.model.named_parameters():
+                if param.requires_grad and name in self.swa_params:
+                    self.swa_params[name] = (
+                        self.swa_params[name] * self.n_averaged + param.data
+                    ) / (self.n_averaged + 1)
+            self.n_averaged += 1
+    
+    def apply_swa(self) -> None:
+        """Apply SWA parameters to the model."""
+        if not self._initialized:
+            return
+            
+        for name, param in self.model.named_parameters():
+            if param.requires_grad and name in self.swa_params:
+                param.data.copy_(self.swa_params[name])
+    
+    def get_swa_lr(self, base_lr: float, swa_lr_ratio: float = 0.05) -> float:
+        """Get learning rate for SWA phase.
+        
+        Args:
+            base_lr: Base learning rate.
+            swa_lr_ratio: SWA learning rate as ratio of base learning rate.
+        
+        Returns:
+            SWA learning rate.
+        """
+        return base_lr * swa_lr_ratio

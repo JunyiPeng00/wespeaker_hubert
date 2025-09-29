@@ -891,6 +891,10 @@ def apply_quantization_with_hp_integration(
 
 def _enable_hp_gating(model: nn.Module, pruning_config: Dict) -> None:
     """Enable Hard Concrete gating for structured pruning."""
+    # Extract temperature annealing parameters from pruning_config
+    min_temperature = pruning_config.get('min_temperature', 0.1)
+    temperature_decay = pruning_config.get('temperature_decay', 0.95)
+    temperature_decay_freq = pruning_config.get('temperature_decay_freq', 100)
     from .hardconcrete import HardConcrete
     from .components import ConvolutionalPositionalEmbedding
     from .quantized_layers import QuantizedConv1d, QuantizedLinear
@@ -925,16 +929,34 @@ def _enable_hp_gating(model: nn.Module, pruning_config: Dict) -> None:
         if conv1d is not None and not isinstance(module, ConvolutionalPositionalEmbedding):
             if not hasattr(module, 'hard_concrete') or module.hard_concrete is None:
                 out_channels = conv1d.out_channels
-                module.hard_concrete = HardConcrete(n_in=out_channels, init_mean=0.01)
+                module.hard_concrete = HardConcrete(
+                    n_in=out_channels, 
+                    init_mean=0.01,
+                    min_temperature=min_temperature,
+                    temperature_decay=temperature_decay,
+                    temperature_decay_freq=temperature_decay_freq
+                )
         
         # Enable gating for attention layers
         elif hasattr(module, 'remaining_heads') and hasattr(module, 'total_num_heads'):
             if not hasattr(module, 'hard_concrete_for_heads') or module.hard_concrete_for_heads is None:
                 num_heads = len(module.remaining_heads)
-                module.hard_concrete_for_heads = HardConcrete(n_in=num_heads, init_mean=0.5)
+                module.hard_concrete_for_heads = HardConcrete(
+                    n_in=num_heads, 
+                    init_mean=0.5,
+                    min_temperature=min_temperature,
+                    temperature_decay=temperature_decay,
+                    temperature_decay_freq=temperature_decay_freq
+                )
             
             if not hasattr(module, 'hard_concrete_for_layer') or module.hard_concrete_for_layer is None:
-                module.hard_concrete_for_layer = HardConcrete(n_in=1, init_mean=0.01)
+                module.hard_concrete_for_layer = HardConcrete(
+                    n_in=1, 
+                    init_mean=0.01,
+                    min_temperature=min_temperature,
+                    temperature_decay=temperature_decay,
+                    temperature_decay_freq=temperature_decay_freq
+                )
         
         # Enable gating for feed-forward layers (handle float and quantized)
         elif hasattr(module, 'intermediate_dense'):
@@ -942,10 +964,22 @@ def _enable_hp_gating(model: nn.Module, pruning_config: Dict) -> None:
             if underlying_linear is not None:
                 if not hasattr(module, 'hard_concrete_for_intermediate') or module.hard_concrete_for_intermediate is None:
                     intermediate_features = underlying_linear.out_features
-                    module.hard_concrete_for_intermediate = HardConcrete(n_in=intermediate_features, init_mean=0.5)
+                    module.hard_concrete_for_intermediate = HardConcrete(
+                        n_in=intermediate_features, 
+                        init_mean=0.5,
+                        min_temperature=min_temperature,
+                        temperature_decay=temperature_decay,
+                        temperature_decay_freq=temperature_decay_freq
+                    )
                 
                 if not hasattr(module, 'hard_concrete_for_layer') or module.hard_concrete_for_layer is None:
-                    module.hard_concrete_for_layer = HardConcrete(n_in=1, init_mean=0.01)
+                    module.hard_concrete_for_layer = HardConcrete(
+                        n_in=1, 
+                        init_mean=0.01,
+                        min_temperature=min_temperature,
+                        temperature_decay=temperature_decay,
+                        temperature_decay_freq=temperature_decay_freq
+                    )
 
 
 def _setup_quantization_training(model: nn.Module, config: QuantizationConfig) -> None:
