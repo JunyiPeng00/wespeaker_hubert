@@ -320,7 +320,20 @@ def train(config='conf/config.yaml', **kwargs):
     model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
     ddp_model = torch.nn.parallel.DistributedDataParallel(model, find_unused_parameters=True)
-    ddp_model._set_static_graph()
+    # NOTE:
+    # Static graph optimization is incompatible with training regimes where
+    # the autograd graph changes over time (e.g., LSQ step_size unfreezing
+    # after freeze_lsq_steps, or dynamic gating/pruning). When enabled, it can
+    # trigger: "Your training graph has changed ... not compatible with static_graph set to True".
+    #
+    # Therefore, only opt-in when explicitly requested AND when neither
+    # quantization-with-unfreeze nor pruning is used.
+    use_pruning_flag = configs.get('use_pruning_loss', False)
+    use_quant_flag = configs.get('use_quantization', False)
+    freeze_steps = int(configs.get('freeze_lsq_steps', 0)) if use_quant_flag else 0
+    allow_static_graph = bool(configs.get('ddp_static_graph', False)) and (not use_pruning_flag) and (not use_quant_flag or freeze_steps == 0)
+    if allow_static_graph:
+        ddp_model._set_static_graph()
     device = torch.device("cuda")
 
     criterion = getattr(torch.nn, configs['loss'])(**configs['loss_args'])
