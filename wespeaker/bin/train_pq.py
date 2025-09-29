@@ -420,7 +420,7 @@ def train(config='conf/config.yaml', **kwargs):
 
     # save config.yaml
     if rank == 0:  
-        cfg_to_save = {k: v for k, v in configs.items() if k != "lambda_pair"}
+        cfg_to_save = {k: v for k, v in configs.items() if k != "lambda_pair" and k != "lsq_controller"}
         saved_config_path = os.path.join(configs['exp_dir'], 'config.yaml')
         with open(saved_config_path, 'w') as fout:
             data = yaml.dump(cfg_to_save)
