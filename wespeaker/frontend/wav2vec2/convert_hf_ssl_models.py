@@ -84,7 +84,6 @@ def convert_hf_ssl_model(
 
     model_id = MODEL_ID_MAP[model_name]
     out_path = os.path.join(exp_dir, f"{model_name}.hf.pth")
-    lock_path = os.path.join(exp_dir, f"{model_name}.hf.pth.lock")
     
     # 1) Load (or download) from Hugging Face
     if is_rank_zero():
@@ -94,11 +93,23 @@ def convert_hf_ssl_model(
     if not is_rank_zero():
         warnings.filterwarnings("ignore")
     
-    original = AutoModel.from_pretrained(
-        model_id,
-        cache_dir=hf_cache_dir,
-        local_files_only=local_files_only,
-    )
+    # original = AutoModel.from_pretrained(
+    #     model_id,
+    #     cache_dir=hf_cache_dir,
+    #     local_files_only=local_files_only,
+    # )
+    if "wavlm" in model_id.lower():
+        original = WavLMModel.from_pretrained(
+            model_id,
+            cache_dir=hf_cache_dir,
+            local_files_only=local_files_only,
+        )
+    else: # "hubert" in model_id.lower():
+        original = AutoModel.from_pretrained(
+             model_id,
+             cache_dir=hf_cache_dir,
+             local_files_only=local_files_only,
+         )
     
     # Restore warnings after model loading
     if not is_rank_zero():
@@ -108,32 +119,8 @@ def convert_hf_ssl_model(
     imported, config = import_huggingface_model(original)
     imported.eval()
 
-    # 3) Add pruning related fields
-    pruning_fields = {
-        'extractor_prune_conv_channels': False,
-        'encoder_prune_attention_heads': False,
-        'encoder_prune_attention_layer': False,
-        'encoder_prune_feed_forward_intermediate': False,
-        'encoder_prune_feed_forward_layer': False,
-    }
-    
-    # Apply pruning configuration if enabled
-    if enable_pruning and pruning_config:
-        pruning_fields.update({
-            'extractor_prune_conv_channels': pruning_config.get('prune_conv_channels', False),
-            'encoder_prune_attention_heads': pruning_config.get('prune_attention_heads', False),
-            'encoder_prune_attention_layer': pruning_config.get('prune_attention_layer', False),
-            'encoder_prune_feed_forward_intermediate': pruning_config.get('prune_feed_forward_intermediate', False),
-            'encoder_prune_feed_forward_layer': pruning_config.get('prune_feed_forward_layer', False),
-        })
-    
-    config.update(pruning_fields)
 
-    # 4) Save the converted checkpoint with file locking to prevent corruption
-    import tempfile
-    import fcntl
-    import time
-    
+    # 4) Save the converted checkpoint
     # Check if file already exists and is valid
     if os.path.exists(out_path):
         try:
@@ -147,53 +134,11 @@ def convert_hf_ssl_model(
             if is_rank_zero():
                 print(f"Model {model_name} file exists but corrupted, recreating...")
     
-    # Use file locking to prevent multiple processes from converting simultaneously
-    temp_path = out_path + ".tmp"
-    max_wait_time = 300  # 5 minutes
-    wait_interval = 1    # 1 second
+    # Save the model
+    if is_rank_zero():
+        print(f"Converting model {model_name}...")
     
-    start_time = time.time()
-    while True:
-        try:
-            # Try to acquire exclusive lock
-            with open(lock_path, 'w') as lock_file:
-                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                
-                # We got the lock, proceed with conversion
-                if is_rank_zero():
-                    print(f"Converting model {model_name}...")
-                
-                # Save to temporary file first
-                torch.save({"state_dict": imported.state_dict(), "config": config}, temp_path)
-                
-                # Atomic move to final location
-                if os.path.exists(out_path):
-                    os.remove(out_path)
-                os.rename(temp_path, out_path)
-                
-                # Release lock by closing file
-                break
-                
-        except (OSError, IOError):
-            # Another process is converting, wait and retry
-            if time.time() - start_time > max_wait_time:
-                raise RuntimeError(f"Timeout waiting for model conversion lock for {model_name}")
-            
-            if is_rank_zero():
-                print(f"Another process is converting {model_name}, waiting...")
-            time.sleep(wait_interval)
-            
-            # Check if file was created by another process while we waited
-            if os.path.exists(out_path):
-                try:
-                    test_ckpt = torch.load(out_path, map_location="cpu")
-                    if "state_dict" in test_ckpt and "config" in test_ckpt:
-                        if is_rank_zero():
-                            print(f"Model {model_name} was converted by another process.")
-                        return out_path, config
-                except Exception:
-                    # File exists but is corrupted, continue waiting
-                    pass
+    torch.save({"state_dict": imported.state_dict(), "config": config}, out_path)
 
     # 5) Verify by loading into WeSpeaker's wav2vec2 model
     ckpt = torch.load(out_path, map_location="cpu")

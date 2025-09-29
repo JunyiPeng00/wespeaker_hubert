@@ -101,6 +101,7 @@ class HuggingfaceFrontend(nn.Module):
                 hf_cache_dir=download_dir,
                 local_files_only=False,
             )
+            # print(f"converted_model_path: {converted_model_path}")
 
         # 2. Build the upstream model from the newly converted checkpoint.
         pruning_units = upstream_args.get('pruning_units', '')
@@ -155,10 +156,10 @@ class HuggingfaceFrontend(nn.Module):
             config['normalize_waveform'] = False
 
         # Determine which model class to use based on the model name
-        if "wavlm" in self.upstream_name.lower():
-            model = wavlm_model(**config)
-        else:
-            model = wav2vec2_model(**config)
+        # if "wavlm" in self.upstream_name.lower():
+        #     model = wavlm_model(**config)
+        # else:
+        model = wav2vec2_model(**config)
         
         result = model.load_state_dict(ckpt['state_dict'], strict=False)
         if is_rank_zero():

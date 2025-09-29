@@ -1,0 +1,20 @@
+
+Lmod is automatically replacing "craype-x86-rome" with "craype-x86-trento".
+
+-------------------------------------------------------------------------------
+There are messages associated with the following module(s):
+-------------------------------------------------------------------------------
+
+PyTorch/2.2.2-rocm-5.6.1-python-3.10-singularity-20240617:
+   Though this container is based on a version of ROCm that is officially
+   supported by the ROCm driver on the system, we cannot exclude that there
+   will be problems when, e.g., the container integrates with the Cray PE as
+   it may be trying to link to libraries that were meant to be used with a
+   different version of ROCm. In particular, we expect that mpi4py may
+   produce warnings.
+
+-------------------------------------------------------------------------------
+
+run_wavlm_ori.sh: line 113: fig_path: command not found
+run_wavlm_ori.sh: line 117: syntax error near unexpected token `fi'
+run_wavlm_ori.sh: line 117: `fi'

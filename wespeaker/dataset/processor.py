@@ -21,6 +21,8 @@ import json
 import logging
 import random
 import tarfile
+import lmdb
+
 from subprocess import PIPE, Popen
 from urllib.parse import urlparse
 
@@ -284,13 +286,13 @@ def speed_perturb(data, num_spks):
         sample_rate = sample['sample_rate']
         waveform = sample['wav']
         speed_idx = random.randint(0, 2)
-        if speed_idx > 0:
-            wav, _ = torchaudio.sox_effects.apply_effects_tensor(
-                waveform, sample_rate,
-                [['speed', str(speeds[speed_idx])], ['rate',
-                                                     str(sample_rate)]])
-            sample['wav'] = wav
-            sample['label'] = sample['label'] + num_spks * speed_idx
+        # if speed_idx > 0:
+        #     wav, _ = torchaudio.sox_effects.apply_effects_tensor(
+        #         waveform, sample_rate,
+        #         [['speed', str(speeds[speed_idx])], ['rate',
+        #                                              str(sample_rate)]])
+        #     sample['wav'] = wav
+        #     sample['label'] = sample['label'] + num_spks * speed_idx
 
         yield sample
 

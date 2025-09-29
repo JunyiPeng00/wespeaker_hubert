@@ -1,0 +1,57 @@
+
+
+========================= ROCm System Management Interface =========================
+=================================== Concise Info ===================================
+GPU[1]		: get_power_avg, Not supported on the given system
+GPU[3]		: get_power_avg, Not supported on the given system
+GPU[5]		: get_power_avg, Not supported on the given system
+GPU[7]		: get_power_avg, Not supported on the given system
+GPU  Temp (DieEdge)  AvgPwr  SCLK    MCLK     Fan  Perf    PwrCap  VRAM%  GPU%  
+0    40.0c           93.0W   800Mhz  1600Mhz  0%   manual  500.0W    0%   0%    
+1    47.0c           N/A     800Mhz  1600Mhz  0%   manual  0.0W      0%   0%    
+2    45.0c           92.0W   800Mhz  1600Mhz  0%   manual  500.0W    0%   0%    
+3    43.0c           N/A     800Mhz  1600Mhz  0%   manual  0.0W      0%   0%    
+4    44.0c           84.0W   800Mhz  1600Mhz  0%   manual  500.0W    0%   0%    
+5    46.0c           N/A     800Mhz  1600Mhz  0%   manual  0.0W      0%   0%    
+6    38.0c           89.0W   800Mhz  1600Mhz  0%   manual  500.0W    0%   0%    
+7    46.0c           N/A     800Mhz  1600Mhz  0%   manual  0.0W      0%   0%    
+====================================================================================
+=============================== End of ROCm SMI Log ================================
+pid 37951's current affinity list: 1-7,9-15,17-23,25-31,33-39,41-47,49-55,57-63,65-71,73-79,81-87,89-95,97-103,105-111,113-119,121-127
+pid 37951's new affinity list: 1-7,9-15,17-23,25-31,33-39,41-47,49-55
+Rank 0 --> pid 37951's current affinity mask: fefefefefefefe; GPU 0,1,2,3,4,5,6,7
+
+
+========================= ROCm System Management Interface =========================
+=================================== Concise Info ===================================
+GPU[1]		: get_power_avg, Not supported on the given system
+GPU[3]		: get_power_avg, Not supported on the given system
+GPU[5]		: get_power_avg, Not supported on the given system
+GPU[7]		: get_power_avg, Not supported on the given system
+GPU  Temp (DieEdge)  AvgPwr  SCLK    MCLK     Fan  Perf    PwrCap  VRAM%  GPU%  
+0    41.0c           92.0W   800Mhz  1600Mhz  0%   manual  500.0W    0%   0%    
+1    47.0c           N/A     800Mhz  1600Mhz  0%   manual  0.0W      0%   0%    
+2    45.0c           92.0W   800Mhz  1600Mhz  0%   manual  500.0W    0%   0%    
+3    43.0c           N/A     800Mhz  1600Mhz  0%   manual  0.0W      0%   0%    
+4    44.0c           84.0W   800Mhz  1600Mhz  0%   manual  500.0W    0%   0%    
+5    46.0c           N/A     800Mhz  1600Mhz  0%   manual  0.0W      0%   0%    
+6    39.0c           90.0W   800Mhz  1600Mhz  0%   manual  500.0W    0%   0%    
+7    46.0c           N/A     800Mhz  1600Mhz  0%   manual  0.0W      0%   0%    
+====================================================================================
+=============================== End of ROCm SMI Log ================================
+pid 37951's current affinity list: 1-7,9-15,17-23,25-31,33-39,41-47,49-55
+pid 37951's new affinity list: 1-7,9-15,17-23,25-31,33-39,41-47,49-55
+Rank 0 --> pid 37951's current affinity mask: fefefefefefefe; GPU 0,1,2,3,4,5,6,7
+Do model average ...
+Namespace(dst_model='exp/baseline_vox2/mhfa_WavLMBasePlus_frozen/models/avg_model.pt', src_path='exp/baseline_vox2/mhfa_WavLMBasePlus_frozen/models', num=3, min_epoch=0, max_epoch=65536)
+['exp/baseline_vox2/mhfa_WavLMBasePlus_frozen/models/model_13.pt', 'exp/baseline_vox2/mhfa_WavLMBasePlus_frozen/models/model_14.pt', 'exp/baseline_vox2/mhfa_WavLMBasePlus_frozen/models/model_15.pt']
+Processing exp/baseline_vox2/mhfa_WavLMBasePlus_frozen/models/model_13.pt
+Processing exp/baseline_vox2/mhfa_WavLMBasePlus_frozen/models/model_14.pt
+Processing exp/baseline_vox2/mhfa_WavLMBasePlus_frozen/models/model_15.pt
+Saving to exp/baseline_vox2/mhfa_WavLMBasePlus_frozen/models/avg_model.pt
+Extract embeddings ...
+Successfully extract embedding for vox1
+Embedding dir is (exp/baseline_vox2/mhfa_WavLMBasePlus_frozen/embeddings).
+[INFO] Extracting embeddings for vox2_dev with 1092009 utterances...
+Successfully extract embedding for vox2_dev
+Embedding dir is (exp/baseline_vox2/mhfa_WavLMBasePlus_frozen/embeddings).

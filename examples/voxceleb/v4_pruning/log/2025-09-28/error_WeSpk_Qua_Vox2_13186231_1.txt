@@ -1,0 +1,477 @@
+
+Lmod is automatically replacing "craype-x86-rome" with "craype-x86-trento".
+
+-------------------------------------------------------------------------------
+There are messages associated with the following module(s):
+-------------------------------------------------------------------------------
+
+PyTorch/2.2.2-rocm-5.6.1-python-3.10-singularity-20240617:
+   Though this container is based on a version of ROCm that is officially
+   supported by the ROCm driver on the system, we cannot exclude that there
+   will be problems when, e.g., the container integrates with the Cray PE as
+   it may be trying to link to libraries that were meant to be used with a
+   different version of ROCm. In particular, we expect that mpi4py may
+   produce warnings.
+
+-------------------------------------------------------------------------------
+
+/opt/miniconda3/envs/pytorch/lib/python3.10/site-packages/torch/distributed/launch.py:183: FutureWarning: The module torch.distributed.launch is deprecated
+and will be removed in future. Use torchrun.
+Note that --use-env is set by default in torchrun.
+If your script expects `--local-rank` argument to be set, please
+change it to read from `os.environ['LOCAL_RANK']` instead. See 
+https://pytorch.org/docs/stable/distributed.html#launch-utility for 
+further instructions
+
+  warnings.warn(
+/user-software/venv/pytorch/lib/python3.10/site-packages/kaldiio/__init__.py:2: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+/user-software/venv/pytorch/lib/python3.10/site-packages/kaldiio/__init__.py:2: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+/user-software/venv/pytorch/lib/python3.10/site-packages/kaldiio/__init__.py:2: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+/user-software/venv/pytorch/lib/python3.10/site-packages/kaldiio/__init__.py:2: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+/user-software/venv/pytorch/lib/python3.10/site-packages/kaldiio/__init__.py:2: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+/user-software/venv/pytorch/lib/python3.10/site-packages/kaldiio/__init__.py:2: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+/user-software/venv/pytorch/lib/python3.10/site-packages/kaldiio/__init__.py:2: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+/user-software/venv/pytorch/lib/python3.10/site-packages/kaldiio/__init__.py:2: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+ESPnet is not installed, cannot use espnet_hubert upstream
+ESPnet is not installed, cannot use espnet_hubert upstream
+ESPnet is not installed, cannot use espnet_hubert upstream
+ESPnet is not installed, cannot use espnet_hubert upstream
+ESPnet is not installed, cannot use espnet_hubert upstream
+ESPnet is not installed, cannot use espnet_hubert upstream
+ESPnet is not installed, cannot use espnet_hubert upstream
+ESPnet is not installed, cannot use espnet_hubert upstream
+[ INFO : 2025-09-28 23:53:05,382 ] - training on multiple gpus, this gpu 5
+[ INFO : 2025-09-28 23:53:05,382 ] - training on multiple gpus, this gpu 1
+[ INFO : 2025-09-28 23:53:05,382 ] - training on multiple gpus, this gpu 7
+[ INFO : 2025-09-28 23:53:05,382 ] - training on multiple gpus, this gpu 4
+[ INFO : 2025-09-28 23:53:05,382 ] - training on multiple gpus, this gpu 2
+[ INFO : 2025-09-28 23:53:05,382 ] - training on multiple gpus, this gpu 3
+[ INFO : 2025-09-28 23:53:05,382 ] - training on multiple gpus, this gpu 6
+[ INFO : 2025-09-28 23:53:05,382 ] - training on multiple gpus, this gpu 0
+[ INFO : 2025-09-28 23:53:05,383 ] - exp_dir is: exp/qua/mhfa_WavLMBasePlus_w1
+[ INFO : 2025-09-28 23:53:05,383 ] - <== Passed Arguments ==>
+[ INFO : 2025-09-28 23:53:05,384 ] - {'checkpoint': 'exp/qua/mhfa_WavLMBasePlus_w1/models/model_0.pt',
+[ INFO : 2025-09-28 23:53:05,385 ] -  'data_type': 'raw',
+[ INFO : 2025-09-28 23:53:05,385 ] -  'dataloader_args': {'batch_size': 128,
+[ INFO : 2025-09-28 23:53:05,385 ] -                      'drop_last': True,
+[ INFO : 2025-09-28 23:53:05,385 ] -                      'num_workers': 8,
+[ INFO : 2025-09-28 23:53:05,385 ] -                      'pin_memory': False,
+[ INFO : 2025-09-28 23:53:05,385 ] -                      'prefetch_factor': 6},
+[ INFO : 2025-09-28 23:53:05,385 ] -  'dataset_args': {'aug_prob': 0.6,
+[ INFO : 2025-09-28 23:53:05,385 ] -                   'cmvn': True,
+[ INFO : 2025-09-28 23:53:05,385 ] -                   'cmvn_args': {'norm_mean': True, 'norm_var': False},
+[ INFO : 2025-09-28 23:53:05,385 ] -                   'filter': True,
+[ INFO : 2025-09-28 23:53:05,385 ] -                   'filter_args': {'max_num_frames': 400, 'min_num_frames': 50},
+[ INFO : 2025-09-28 23:53:05,385 ] -                   'frontend': 'huggingface',
+[ INFO : 2025-09-28 23:53:05,385 ] -                   'huggingface_args': {'frame_length': 20,
+[ INFO : 2025-09-28 23:53:05,385 ] -                                        'frame_shift': 20,
+[ INFO : 2025-09-28 23:53:05,385 ] -                                        'frozen': False,
+[ INFO : 2025-09-28 23:53:05,385 ] -                                        'upstream_args': {'name': 'wavlm_base_plus',
+[ INFO : 2025-09-28 23:53:05,386 ] -                                                          'path_or_url': '/scratch/project_465002053/junyi/sv/wespeaker_dev/wespeaker_hubert/examples/voxceleb/v4_pruning/convert/wavlm_base_plus.hf.pth',
+[ INFO : 2025-09-28 23:53:05,386 ] -                                                          'pruning_units': ''}},
+[ INFO : 2025-09-28 23:53:05,386 ] -                   'num_frms': 150,
+[ INFO : 2025-09-28 23:53:05,386 ] -                   'resample_rate': 16000,
+[ INFO : 2025-09-28 23:53:05,386 ] -                   'sample_num_per_epoch': 0,
+[ INFO : 2025-09-28 23:53:05,386 ] -                   'shuffle': True,
+[ INFO : 2025-09-28 23:53:05,386 ] -                   'shuffle_args': {'shuffle_size': 2500},
+[ INFO : 2025-09-28 23:53:05,386 ] -                   'spec_aug': False,
+[ INFO : 2025-09-28 23:53:05,386 ] -                   'spec_aug_args': {'max_f': 8,
+[ INFO : 2025-09-28 23:53:05,386 ] -                                     'max_t': 10,
+[ INFO : 2025-09-28 23:53:05,386 ] -                                     'num_f_mask': 1,
+[ INFO : 2025-09-28 23:53:05,386 ] -                                     'num_t_mask': 1,
+[ INFO : 2025-09-28 23:53:05,386 ] -                                     'prob': 0.6},
+[ INFO : 2025-09-28 23:53:05,386 ] -                   'speed_perturb': False},
+[ INFO : 2025-09-28 23:53:05,386 ] -  'do_lm': False,
+[ INFO : 2025-09-28 23:53:05,386 ] -  'enable_amp': False,
+[ INFO : 2025-09-28 23:53:05,386 ] -  'exp_dir': 'exp/qua/mhfa_WavLMBasePlus_w1',
+[ INFO : 2025-09-28 23:53:05,387 ] -  'freeze_lsq_steps': 0,
+[ INFO : 2025-09-28 23:53:05,387 ] -  'gpus': [0, 1, 2, 3, 4, 5, 6, 7],
+[ INFO : 2025-09-28 23:53:05,387 ] -  'grad_clip_norm': 1.0,
+[ INFO : 2025-09-28 23:53:05,387 ] -  'initial_reg_lr': 0.005,
+[ INFO : 2025-09-28 23:53:05,387 ] -  'local_rank': 0,
+[ INFO : 2025-09-28 23:53:05,387 ] -  'log_batch_interval': 100,
+[ INFO : 2025-09-28 23:53:05,387 ] -  'loss': 'CrossEntropyLoss',
+[ INFO : 2025-09-28 23:53:05,387 ] -  'loss_args': {},
+[ INFO : 2025-09-28 23:53:05,387 ] -  'lsq_step_lr': 0.0001,
+[ INFO : 2025-09-28 23:53:05,387 ] -  'margin_scheduler': 'MarginScheduler',
+[ INFO : 2025-09-28 23:53:05,387 ] -  'margin_update': {'final_margin': 0.2,
+[ INFO : 2025-09-28 23:53:05,387 ] -                    'fix_start_epoch': 1,
+[ INFO : 2025-09-28 23:53:05,387 ] -                    'increase_start_epoch': 1,
+[ INFO : 2025-09-28 23:53:05,387 ] -                    'increase_type': 'exp',
+[ INFO : 2025-09-28 23:53:05,387 ] -                    'initial_margin': 0.2,
+[ INFO : 2025-09-28 23:53:05,387 ] -                    'update_margin': True},
+[ INFO : 2025-09-28 23:53:05,387 ] -  'min_sparsity': 0.0,
+[ INFO : 2025-09-28 23:53:05,388 ] -  'model': 'SSL_BACKEND_MHFA',
+[ INFO : 2025-09-28 23:53:05,388 ] -  'model_args': {'compression_dim': 128,
+[ INFO : 2025-09-28 23:53:05,388 ] -                 'embed_dim': 256,
+[ INFO : 2025-09-28 23:53:05,388 ] -                 'feat_dim': -1,
+[ INFO : 2025-09-28 23:53:05,388 ] -                 'feature_grad_mult': 0.1,
+[ INFO : 2025-09-28 23:53:05,388 ] -                 'head_nb': 32,
+[ INFO : 2025-09-28 23:53:05,388 ] -                 'nb_layer': 13},
+[ INFO : 2025-09-28 23:53:05,388 ] -  'model_init': None,
+[ INFO : 2025-09-28 23:53:05,388 ] -  'noise_data': 'data/musan/lmdb',
+[ INFO : 2025-09-28 23:53:05,388 ] -  'num_avg': 1,
+[ INFO : 2025-09-28 23:53:05,388 ] -  'num_epochs': 12,
+[ INFO : 2025-09-28 23:53:05,388 ] -  'optimizer': 'AdamW',
+[ INFO : 2025-09-28 23:53:05,388 ] -  'optimizer_args': {'weight_decay': 1e-07},
+[ INFO : 2025-09-28 23:53:05,388 ] -  'per_channel_activations': False,
+[ INFO : 2025-09-28 23:53:05,388 ] -  'per_channel_weights': True,
+[ INFO : 2025-09-28 23:53:05,388 ] -  'preserve_hp_gating': True,
+[ INFO : 2025-09-28 23:53:05,388 ] -  'projection_args': {'easy_margin': False,
+[ INFO : 2025-09-28 23:53:05,389 ] -                      'project_type': 'arc_margin_intertopk_subcenter',
+[ INFO : 2025-09-28 23:53:05,389 ] -                      'scale': 32.0},
+[ INFO : 2025-09-28 23:53:05,389 ] -  'quantization_config': '1bit_symmetric',
+[ INFO : 2025-09-28 23:53:05,389 ] -  'quantize_activations': False,
+[ INFO : 2025-09-28 23:53:05,389 ] -  'quantize_bias': False,
+[ INFO : 2025-09-28 23:53:05,389 ] -  'quantize_weights': True,
+[ INFO : 2025-09-28 23:53:05,389 ] -  'reverb_data': 'data/rirs/lmdb',
+[ INFO : 2025-09-28 23:53:05,389 ] -  'save_epoch_interval': 1,
+[ INFO : 2025-09-28 23:53:05,389 ] -  'scheduler': 'ExponentialDecrease',
+[ INFO : 2025-09-28 23:53:05,389 ] -  'scheduler_args': {'final_lr': 1e-06,
+[ INFO : 2025-09-28 23:53:05,389 ] -                     'initial_lr': 0.0001,
+[ INFO : 2025-09-28 23:53:05,389 ] -                     'warm_from_zero': True,
+[ INFO : 2025-09-28 23:53:05,389 ] -                     'warm_up_epoch': 2},
+[ INFO : 2025-09-28 23:53:05,389 ] -  'seed': 42,
+[ INFO : 2025-09-28 23:53:05,389 ] -  'sparsity_schedule': 'cosine',
+[ INFO : 2025-09-28 23:53:05,389 ] -  'sparsity_warmup_epochs': 8,
+[ INFO : 2025-09-28 23:53:05,389 ] -  'target_sparsity': 0.7,
+[ INFO : 2025-09-28 23:53:05,389 ] -  'train_data': 'data/vox2_dev/raw.list',
+[ INFO : 2025-09-28 23:53:05,390 ] -  'train_label': 'data/vox2_dev/utt2spk',
+[ INFO : 2025-09-28 23:53:05,390 ] -  'train_lmdb': 'data/vox2_dev/lmdb',
+[ INFO : 2025-09-28 23:53:05,390 ] -  'use_pruning_loss': False,
+[ INFO : 2025-09-28 23:53:05,390 ] -  'use_quantization': True}
+[ INFO : 2025-09-28 23:53:07,491 ] - <== Data statistics ==>
+[ INFO : 2025-09-28 23:53:07,491 ] - train data num: 1092009, spk num: 5994
+[ INFO : 2025-09-28 23:53:08,332 ] - <== Dataloaders ==>
+[ INFO : 2025-09-28 23:53:08,332 ] - train dataloaders created
+[ INFO : 2025-09-28 23:53:08,332 ] - epoch iteration number: 1066
+[ INFO : 2025-09-28 23:53:08,332 ] - <== Model ==>
+[ INFO : 2025-09-28 23:53:09,287 ] - <== Model ==>
+[ INFO : 2025-09-28 23:53:09,298 ] - <== Model ==>
+[ INFO : 2025-09-28 23:53:09,316 ] - <== Model ==>
+[ INFO : 2025-09-28 23:53:09,322 ] - <== Model ==>
+[ INFO : 2025-09-28 23:53:09,337 ] - <== Model ==>
+[ INFO : 2025-09-28 23:53:09,352 ] - <== Model ==>
+[ INFO : 2025-09-28 23:53:09,368 ] - <== Model ==>
+[ INFO : 2025-09-28 23:53:11,178 ] - speaker_model size: 95631530
+[ INFO : 2025-09-28 23:53:11,178 ] - <== Quantization ==>
+Applying quantization to model (guarded)...
+[ WARNING : 2025-09-28 23:53:12,780 ] - unexpected tensor: projection.weight
+[ INFO : 2025-09-28 23:53:12,781 ] - Load checkpoint: exp/qua/mhfa_WavLMBasePlus_w1/models/model_0.pt
+[ WARNING : 2025-09-28 23:53:12,945 ] - unexpected tensor: projection.weight
+[ INFO : 2025-09-28 23:53:12,947 ] - Load checkpoint: exp/qua/mhfa_WavLMBasePlus_w1/models/model_0.pt
+[ WARNING : 2025-09-28 23:53:12,947 ] - unexpected tensor: projection.weight
+[ INFO : 2025-09-28 23:53:12,949 ] - Load checkpoint: exp/qua/mhfa_WavLMBasePlus_w1/models/model_0.pt
+[ WARNING : 2025-09-28 23:53:12,950 ] - unexpected tensor: projection.weight
+[ WARNING : 2025-09-28 23:53:12,950 ] - unexpected tensor: projection.weight
+[ INFO : 2025-09-28 23:53:12,951 ] - Load checkpoint: exp/qua/mhfa_WavLMBasePlus_w1/models/model_0.pt
+[ WARNING : 2025-09-28 23:53:12,951 ] - unexpected tensor: projection.weight
+[ INFO : 2025-09-28 23:53:12,951 ] - Load checkpoint: exp/qua/mhfa_WavLMBasePlus_w1/models/model_0.pt
+[ INFO : 2025-09-28 23:53:12,952 ] - Load checkpoint: exp/qua/mhfa_WavLMBasePlus_w1/models/model_0.pt
+[ WARNING : 2025-09-28 23:53:12,953 ] - unexpected tensor: projection.weight
+[ INFO : 2025-09-28 23:53:12,955 ] - Load checkpoint: exp/qua/mhfa_WavLMBasePlus_w1/models/model_0.pt
+[ WARNING : 2025-09-28 23:53:12,955 ] - unexpected tensor: projection.weight
+[ INFO : 2025-09-28 23:53:12,957 ] - Load checkpoint: exp/qua/mhfa_WavLMBasePlus_w1/models/model_0.pt
+[ INFO : 2025-09-28 23:53:13,471 ] - Quantization applied via wespeaker.frontend.wav2vec2. Quantized model size: 95719466
+[ INFO : 2025-09-28 23:53:13,496 ] - SSL_BACKEND_MHFA(
+[ INFO : 2025-09-28 23:53:13,496 ] -   (cmp_linear_k): QuantizedLinear(
+[ INFO : 2025-09-28 23:53:13,496 ] -     (linear): Linear(in_features=768, out_features=128, bias=True)
+[ INFO : 2025-09-28 23:53:13,496 ] -     (weight_quantizer): LSQQuantizer(num_bits=1, symmetric=True, per_channel=True)
+[ INFO : 2025-09-28 23:53:13,496 ] -   )
+[ INFO : 2025-09-28 23:53:13,496 ] -   (cmp_linear_v): QuantizedLinear(
+[ INFO : 2025-09-28 23:53:13,496 ] -     (linear): Linear(in_features=768, out_features=128, bias=True)
+[ INFO : 2025-09-28 23:53:13,496 ] -     (weight_quantizer): LSQQuantizer(num_bits=1, symmetric=True, per_channel=True)
+[ INFO : 2025-09-28 23:53:13,496 ] -   )
+[ INFO : 2025-09-28 23:53:13,496 ] -   (att_head): QuantizedLinear(
+[ INFO : 2025-09-28 23:53:13,496 ] -     (linear): Linear(in_features=128, out_features=32, bias=True)
+[ INFO : 2025-09-28 23:53:13,496 ] -     (weight_quantizer): LSQQuantizer(num_bits=1, symmetric=True, per_channel=True)
+[ INFO : 2025-09-28 23:53:13,496 ] -   )
+[ INFO : 2025-09-28 23:53:13,496 ] -   (pooling_fc): QuantizedLinear(
+[ INFO : 2025-09-28 23:53:13,497 ] -     (linear): Linear(in_features=4096, out_features=256, bias=True)
+[ INFO : 2025-09-28 23:53:13,497 ] -     (weight_quantizer): LSQQuantizer(num_bits=1, symmetric=True, per_channel=True)
+[ INFO : 2025-09-28 23:53:13,497 ] -   )
+[ INFO : 2025-09-28 23:53:13,497 ] -   (frontend): HuggingfaceFrontend(
+[ INFO : 2025-09-28 23:53:13,497 ] -     (upstream): Wav2Vec2Model(
+[ INFO : 2025-09-28 23:53:13,497 ] -       (feature_extractor): FeatureExtractor(
+[ INFO : 2025-09-28 23:53:13,497 ] -         (conv_layers): ModuleList(
+[ INFO : 2025-09-28 23:53:13,497 ] -           (0): ConvLayerBlock(
+[ INFO : 2025-09-28 23:53:13,497 ] -             (layer_norm): QuantizedGroupNorm(
+[ INFO : 2025-09-28 23:53:13,497 ] -               (group_norm): GroupNorm(512, 512, eps=1e-05, affine=True)
+[ INFO : 2025-09-28 23:53:13,497 ] -             )
+[ INFO : 2025-09-28 23:53:13,497 ] -             (conv): QuantizedConv1d(
+[ INFO : 2025-09-28 23:53:13,497 ] -               (conv1d): Conv1d(1, 512, kernel_size=(10,), stride=(5,), bias=False)
+[ INFO : 2025-09-28 23:53:13,497 ] -               (weight_quantizer): LSQQuantizer(num_bits=1, symmetric=True, per_channel=True)
+[ INFO : 2025-09-28 23:53:13,497 ] -             )
+[ INFO : 2025-09-28 23:53:13,497 ] -           )
+[ INFO : 2025-09-28 23:53:13,498 ] -           (1-4): 4 x ConvLayerBlock(
+[ INFO : 2025-09-28 23:53:13,498 ] -             (conv): QuantizedConv1d(
+[ INFO : 2025-09-28 23:53:13,498 ] -               (conv1d): Conv1d(512, 512, kernel_size=(3,), stride=(2,), bias=False)
+[ INFO : 2025-09-28 23:53:13,498 ] -               (weight_quantizer): LSQQuantizer(num_bits=1, symmetric=True, per_channel=True)
+[ INFO : 2025-09-28 23:53:13,498 ] -             )
+[ INFO : 2025-09-28 23:53:13,498 ] -           )
+[ INFO : 2025-09-28 23:53:13,498 ] -           (5-6): 2 x ConvLayerBlock(
+[ INFO : 2025-09-28 23:53:13,498 ] -             (conv): QuantizedConv1d(
+[ INFO : 2025-09-28 23:53:13,498 ] -               (conv1d): Conv1d(512, 512, kernel_size=(2,), stride=(2,), bias=False)
+[ INFO : 2025-09-28 23:53:13,498 ] -               (weight_quantizer): LSQQuantizer(num_bits=1, symmetric=True, per_channel=True)
+[ INFO : 2025-09-28 23:53:13,498 ] -             )
+[ INFO : 2025-09-28 23:53:13,498 ] -           )
+[ INFO : 2025-09-28 23:53:13,498 ] -         )
+[ INFO : 2025-09-28 23:53:13,498 ] -       )
+[ INFO : 2025-09-28 23:53:13,498 ] -       (encoder): Encoder(
+[ INFO : 2025-09-28 23:53:13,498 ] -         (feature_projection): FeatureProjection(
+[ INFO : 2025-09-28 23:53:13,498 ] -           (layer_norm): QuantizedLayerNorm(
+[ INFO : 2025-09-28 23:53:13,498 ] -             (layer_norm): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+[ INFO : 2025-09-28 23:53:13,499 ] -           )
+[ INFO : 2025-09-28 23:53:13,499 ] -           (projection): QuantizedLinear(
+[ INFO : 2025-09-28 23:53:13,499 ] -             (linear): Linear(in_features=512, out_features=768, bias=True)
+[ INFO : 2025-09-28 23:53:13,499 ] -             (weight_quantizer): LSQQuantizer(num_bits=1, symmetric=True, per_channel=True)
+[ INFO : 2025-09-28 23:53:13,499 ] -           )
+[ INFO : 2025-09-28 23:53:13,499 ] -           (dropout): Dropout(p=0.1, inplace=False)
+[ INFO : 2025-09-28 23:53:13,499 ] -         )
+[ INFO : 2025-09-28 23:53:13,499 ] -         (transformer): Transformer(
+[ INFO : 2025-09-28 23:53:13,499 ] -           (pos_conv_embed): ConvolutionalPositionalEmbedding(
+[ INFO : 2025-09-28 23:53:13,499 ] -             (conv): ParametrizedConv1d(
+[ INFO : 2025-09-28 23:53:13,499 ] -               768, 768, kernel_size=(128,), stride=(1,), padding=(64,), groups=16
+[ INFO : 2025-09-28 23:53:13,499 ] -               (parametrizations): ModuleDict(
+[ INFO : 2025-09-28 23:53:13,499 ] -                 (weight): ParametrizationList(
+[ INFO : 2025-09-28 23:53:13,499 ] -                   (0): _WeightNorm()
+[ INFO : 2025-09-28 23:53:13,499 ] -                 )
+[ INFO : 2025-09-28 23:53:13,499 ] -               )
+[ INFO : 2025-09-28 23:53:13,499 ] -             )
+[ INFO : 2025-09-28 23:53:13,499 ] -           )
+[ INFO : 2025-09-28 23:53:13,499 ] -           (layer_norm): QuantizedLayerNorm(
+[ INFO : 2025-09-28 23:53:13,500 ] -             (layer_norm): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+[ INFO : 2025-09-28 23:53:13,500 ] -           )
+[ INFO : 2025-09-28 23:53:13,500 ] -           (dropout): Dropout(p=0.1, inplace=False)
+[ INFO : 2025-09-28 23:53:13,500 ] -           (layers): ModuleList(
+[ INFO : 2025-09-28 23:53:13,500 ] -             (0): EncoderLayer(
+[ INFO : 2025-09-28 23:53:13,500 ] -               (attention): WavLMSelfAttention(
+[ INFO : 2025-09-28 23:53:13,500 ] -                 (dropout): Dropout(p=0.1, inplace=False)
+[ INFO : 2025-09-28 23:53:13,500 ] -                 (k_proj): QuantizedLinear(
+[ INFO : 2025-09-28 23:53:13,500 ] -                   (linear): Linear(in_features=768, out_features=768, bias=True)
+[ INFO : 2025-09-28 23:53:13,500 ] -                   (weight_quantizer): LSQQuantizer(num_bits=1, symmetric=True, per_channel=True)
+[ INFO : 2025-09-28 23:53:13,500 ] -                 )
+[ INFO : 2025-09-28 23:53:13,500 ] -                 (v_proj): QuantizedLinear(
+[ INFO : 2025-09-28 23:53:13,500 ] -                   (linear): Linear(in_features=768, out_features=768, bias=True)
+[ INFO : 2025-09-28 23:53:13,500 ] -                   (weight_quantizer): LSQQuantizer(num_bits=1, symmetric=True, per_channel=True)
+[ INFO : 2025-09-28 23:53:13,500 ] -                 )
+[ INFO : 2025-09-28 23:53:13,500 ] -                 (q_proj): QuantizedLinear(
+[ INFO : 2025-09-28 23:53:13,500 ] -                   (linear): Linear(in_features=768, out_features=768, bias=True)
+[ INFO : 2025-09-28 23:53:13,500 ] -                   (weight_quantizer): LSQQuantizer(num_bits=1, symmetric=True, per_channel=True)
+[ INFO : 2025-09-28 23:53:13,500 ] -                 )
+[ INFO : 2025-09-28 23:53:13,501 ] -                 (out_proj): QuantizedLinear(
+[ INFO : 2025-09-28 23:53:13,501 ] -                   (linear): Linear(in_features=768, out_features=768, bias=True)
+[ INFO : 2025-09-28 23:53:13,501 ] -                   (weight_quantizer): LSQQuantizer(num_bits=1, symmetric=True, per_channel=True)
+[ INFO : 2025-09-28 23:53:13,501 ] -                 )
+[ INFO : 2025-09-28 23:53:13,501 ] -                 (rel_attn_embed): Embedding(320, 12)
+[ INFO : 2025-09-28 23:53:13,501 ] -                 (gru_rel_pos_linear): QuantizedLinear(
+[ INFO : 2025-09-28 23:53:13,501 ] -                   (linear): Linear(in_features=64, out_features=8, bias=True)
+[ INFO : 2025-09-28 23:53:13,501 ] -                   (weight_quantizer): LSQQuantizer(num_bits=1, symmetric=True, per_channel=True)
+[ INFO : 2025-09-28 23:53:13,501 ] -                 )
+[ INFO : 2025-09-28 23:53:13,501 ] -               )
+[ INFO : 2025-09-28 23:53:13,501 ] -               (dropout): Dropout(p=0.1, inplace=False)
+[ INFO : 2025-09-28 23:53:13,501 ] -               (layer_norm): QuantizedLayerNorm(
+[ INFO : 2025-09-28 23:53:13,501 ] -                 (layer_norm): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+[ INFO : 2025-09-28 23:53:13,501 ] -               )
+[ INFO : 2025-09-28 23:53:13,501 ] -               (feed_forward): FeedForward(
+[ INFO : 2025-09-28 23:53:13,501 ] -                 (intermediate_dense): QuantizedLinear(
+[ INFO : 2025-09-28 23:53:13,501 ] -                   (linear): Linear(in_features=768, out_features=3072, bias=True)
+[ INFO : 2025-09-28 23:53:13,501 ] -                   (weight_quantizer): LSQQuantizer(num_bits=1, symmetric=True, per_channel=True)
+[ INFO : 2025-09-28 23:53:13,501 ] -                 )
+[ INFO : 2025-09-28 23:53:13,502 ] -                 (intermediate_dropout): Dropout(p=0.0, inplace=False)
+[ INFO : 2025-09-28 23:53:13,502 ] -                 (output_dense): QuantizedLinear(
+[ INFO : 2025-09-28 23:53:13,502 ] -                   (linear): Linear(in_features=3072, out_features=768, bias=True)
+[ INFO : 2025-09-28 23:53:13,502 ] -                   (weight_quantizer): LSQQuantizer(num_bits=1, symmetric=True, per_channel=True)
+[ INFO : 2025-09-28 23:53:13,502 ] -                 )
+[ INFO : 2025-09-28 23:53:13,502 ] -                 (output_dropout): Dropout(p=0.1, inplace=False)
+[ INFO : 2025-09-28 23:53:13,502 ] -               )
+[ INFO : 2025-09-28 23:53:13,502 ] -               (final_layer_norm): QuantizedLayerNorm(
+[ INFO : 2025-09-28 23:53:13,502 ] -                 (layer_norm): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+[ INFO : 2025-09-28 23:53:13,502 ] -               )
+[ INFO : 2025-09-28 23:53:13,502 ] -             )
+[ INFO : 2025-09-28 23:53:13,502 ] -             (1-11): 11 x EncoderLayer(
+[ INFO : 2025-09-28 23:53:13,502 ] -               (attention): WavLMSelfAttention(
+[ INFO : 2025-09-28 23:53:13,502 ] -                 (dropout): Dropout(p=0.1, inplace=False)
+[ INFO : 2025-09-28 23:53:13,502 ] -                 (k_proj): QuantizedLinear(
+[ INFO : 2025-09-28 23:53:13,502 ] -                   (linear): Linear(in_features=768, out_features=768, bias=True)
+[ INFO : 2025-09-28 23:53:13,502 ] -                   (weight_quantizer): LSQQuantizer(num_bits=1, symmetric=True, per_channel=True)
+[ INFO : 2025-09-28 23:53:13,502 ] -                 )
+[ INFO : 2025-09-28 23:53:13,503 ] -                 (v_proj): QuantizedLinear(
+[ INFO : 2025-09-28 23:53:13,503 ] -                   (linear): Linear(in_features=768, out_features=768, bias=True)
+[ INFO : 2025-09-28 23:53:13,503 ] -                   (weight_quantizer): LSQQuantizer(num_bits=1, symmetric=True, per_channel=True)
+[ INFO : 2025-09-28 23:53:13,503 ] -                 )
+[ INFO : 2025-09-28 23:53:13,503 ] -                 (q_proj): QuantizedLinear(
+[ INFO : 2025-09-28 23:53:13,503 ] -                   (linear): Linear(in_features=768, out_features=768, bias=True)
+[ INFO : 2025-09-28 23:53:13,503 ] -                   (weight_quantizer): LSQQuantizer(num_bits=1, symmetric=True, per_channel=True)
+[ INFO : 2025-09-28 23:53:13,503 ] -                 )
+[ INFO : 2025-09-28 23:53:13,503 ] -                 (out_proj): QuantizedLinear(
+[ INFO : 2025-09-28 23:53:13,503 ] -                   (linear): Linear(in_features=768, out_features=768, bias=True)
+[ INFO : 2025-09-28 23:53:13,503 ] -                   (weight_quantizer): LSQQuantizer(num_bits=1, symmetric=True, per_channel=True)
+[ INFO : 2025-09-28 23:53:13,503 ] -                 )
+[ INFO : 2025-09-28 23:53:13,503 ] -                 (gru_rel_pos_linear): QuantizedLinear(
+[ INFO : 2025-09-28 23:53:13,503 ] -                   (linear): Linear(in_features=64, out_features=8, bias=True)
+[ INFO : 2025-09-28 23:53:13,503 ] -                   (weight_quantizer): LSQQuantizer(num_bits=1, symmetric=True, per_channel=True)
+[ INFO : 2025-09-28 23:53:13,503 ] -                 )
+[ INFO : 2025-09-28 23:53:13,504 ] -               )
+[ INFO : 2025-09-28 23:53:13,504 ] -               (dropout): Dropout(p=0.1, inplace=False)
+[ INFO : 2025-09-28 23:53:13,504 ] -               (layer_norm): QuantizedLayerNorm(
+[ INFO : 2025-09-28 23:53:13,504 ] -                 (layer_norm): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+[ INFO : 2025-09-28 23:53:13,504 ] -               )
+[ INFO : 2025-09-28 23:53:13,504 ] -               (feed_forward): FeedForward(
+[ INFO : 2025-09-28 23:53:13,504 ] -                 (intermediate_dense): QuantizedLinear(
+[ INFO : 2025-09-28 23:53:13,504 ] -                   (linear): Linear(in_features=768, out_features=3072, bias=True)
+[ INFO : 2025-09-28 23:53:13,504 ] -                   (weight_quantizer): LSQQuantizer(num_bits=1, symmetric=True, per_channel=True)
+[ INFO : 2025-09-28 23:53:13,504 ] -                 )
+[ INFO : 2025-09-28 23:53:13,504 ] -                 (intermediate_dropout): Dropout(p=0.0, inplace=False)
+[ INFO : 2025-09-28 23:53:13,504 ] -                 (output_dense): QuantizedLinear(
+[ INFO : 2025-09-28 23:53:13,504 ] -                   (linear): Linear(in_features=3072, out_features=768, bias=True)
+[ INFO : 2025-09-28 23:53:13,504 ] -                   (weight_quantizer): LSQQuantizer(num_bits=1, symmetric=True, per_channel=True)
+[ INFO : 2025-09-28 23:53:13,504 ] -                 )
+[ INFO : 2025-09-28 23:53:13,504 ] -                 (output_dropout): Dropout(p=0.1, inplace=False)
+[ INFO : 2025-09-28 23:53:13,505 ] -               )
+[ INFO : 2025-09-28 23:53:13,505 ] -               (final_layer_norm): QuantizedLayerNorm(
+[ INFO : 2025-09-28 23:53:13,505 ] -                 (layer_norm): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+[ INFO : 2025-09-28 23:53:13,505 ] -               )
+[ INFO : 2025-09-28 23:53:13,505 ] -             )
+[ INFO : 2025-09-28 23:53:13,505 ] -           )
+[ INFO : 2025-09-28 23:53:13,505 ] -         )
+[ INFO : 2025-09-28 23:53:13,505 ] -       )
+[ INFO : 2025-09-28 23:53:13,505 ] -     )
+[ INFO : 2025-09-28 23:53:13,505 ] -   )
+[ INFO : 2025-09-28 23:53:13,505 ] -   (projection): ArcMarginProduct_intertopk_subcenter(in_features=256, out_features=5994, scale=32.0, margin=0.0, easy_margin=False,K=3, mp=0.06, k_top=5, do_lm=False)
+[ INFO : 2025-09-28 23:53:13,505 ] - )
+[ INFO : 2025-09-28 23:53:13,505 ] - start_epoch: 1
+[ INFO : 2025-09-28 23:53:13,609 ] - Converting BatchNorm2d to SyncBatchNorm...
+[ INFO : 2025-09-28 23:53:13,822 ] - start_epoch: 1
+[ INFO : 2025-09-28 23:53:13,830 ] - start_epoch: 1
+[ INFO : 2025-09-28 23:53:13,840 ] - start_epoch: 1
+[ INFO : 2025-09-28 23:53:13,842 ] - start_epoch: 1
+[ INFO : 2025-09-28 23:53:13,849 ] - start_epoch: 1
+[ INFO : 2025-09-28 23:53:13,858 ] - start_epoch: 1
+[ INFO : 2025-09-28 23:53:13,876 ] - start_epoch: 1
+/opt/miniconda3/envs/pytorch/lib/python3.10/site-packages/torch/nn/parallel/distributed.py:2219: UserWarning: You passed find_unused_parameters=true to DistributedDataParallel, `_set_static_graph` will detect unused parameters automatically, so you do not need to set find_unused_parameters=true, just be sure these unused parameters will not change during training loop while calling `_set_static_graph`.
+  warnings.warn(
+/opt/miniconda3/envs/pytorch/lib/python3.10/site-packages/torch/nn/parallel/distributed.py:2219: UserWarning: You passed find_unused_parameters=true to DistributedDataParallel, `_set_static_graph` will detect unused parameters automatically, so you do not need to set find_unused_parameters=true, just be sure these unused parameters will not change during training loop while calling `_set_static_graph`.
+  warnings.warn(
+/opt/miniconda3/envs/pytorch/lib/python3.10/site-packages/torch/nn/parallel/distributed.py:2219: UserWarning: You passed find_unused_parameters=true to DistributedDataParallel, `_set_static_graph` will detect unused parameters automatically, so you do not need to set find_unused_parameters=true, just be sure these unused parameters will not change during training loop while calling `_set_static_graph`.
+  warnings.warn(
+/opt/miniconda3/envs/pytorch/lib/python3.10/site-packages/torch/nn/parallel/distributed.py:2219: UserWarning: You passed find_unused_parameters=true to DistributedDataParallel, `_set_static_graph` will detect unused parameters automatically, so you do not need to set find_unused_parameters=true, just be sure these unused parameters will not change during training loop while calling `_set_static_graph`.
+  warnings.warn(
+/opt/miniconda3/envs/pytorch/lib/python3.10/site-packages/torch/nn/parallel/distributed.py:2219: UserWarning: You passed find_unused_parameters=true to DistributedDataParallel, `_set_static_graph` will detect unused parameters automatically, so you do not need to set find_unused_parameters=true, just be sure these unused parameters will not change during training loop while calling `_set_static_graph`.
+  warnings.warn(
+/opt/miniconda3/envs/pytorch/lib/python3.10/site-packages/torch/nn/parallel/distributed.py:2219: UserWarning: You passed find_unused_parameters=true to DistributedDataParallel, `_set_static_graph` will detect unused parameters automatically, so you do not need to set find_unused_parameters=true, just be sure these unused parameters will not change during training loop while calling `_set_static_graph`.
+  warnings.warn(
+[ INFO : 2025-09-28 23:53:14,042 ] - <== Loss ==>
+[ INFO : 2025-09-28 23:53:14,042 ] - loss criterion is: CrossEntropyLoss
+/opt/miniconda3/envs/pytorch/lib/python3.10/site-packages/torch/nn/parallel/distributed.py:2219: UserWarning: You passed find_unused_parameters=true to DistributedDataParallel, `_set_static_graph` will detect unused parameters automatically, so you do not need to set find_unused_parameters=true, just be sure these unused parameters will not change during training loop while calling `_set_static_graph`.
+  warnings.warn(
+/opt/miniconda3/envs/pytorch/lib/python3.10/site-packages/torch/nn/parallel/distributed.py:2219: UserWarning: You passed find_unused_parameters=true to DistributedDataParallel, `_set_static_graph` will detect unused parameters automatically, so you do not need to set find_unused_parameters=true, just be sure these unused parameters will not change during training loop while calling `_set_static_graph`.
+  warnings.warn(
+[ INFO : 2025-09-28 23:53:14,048 ] - Enabled two-phase LSQ optimizer: 96 step_size params, step_lr=0.0001
+[ INFO : 2025-09-28 23:53:14,048 ] - <== Optimizer ==>
+[ INFO : 2025-09-28 23:53:14,048 ] - optimizer is: AdamW
+[ INFO : 2025-09-28 23:53:14,048 ] - <== Scheduler ==>
+[ INFO : 2025-09-28 23:53:14,049 ] - scheduler is: ExponentialDecrease
+[ INFO : 2025-09-28 23:53:14,049 ] - <== MarginScheduler ==>
+[ INFO : 2025-09-28 23:53:14,052 ] - Configuration saved to exp/qua/mhfa_WavLMBasePlus_w1/config.yaml
+[ INFO : 2025-09-28 23:53:14,053 ] - <========== Training process ==========>
+[ INFO : 2025-09-28 23:53:14,053 ] - +----------+----------+----------+----------+----------+----------+
+[ INFO : 2025-09-28 23:53:14,053 ] - |     Epoch|     Batch|        Lr|    Margin|      Loss|       Acc|
+[ INFO : 2025-09-28 23:53:14,053 ] - +----------+----------+----------+----------+----------+----------+
+[ INFO : 2025-09-28 23:57:13,137 ] - |         1|       100|7.1695e-05|       0.2|    15.422|         0|
+[ INFO : 2025-09-28 23:57:13,138 ] - |         1|       100|7.1695e-05|       0.2|     15.43|         0|
+[ INFO : 2025-09-28 23:57:13,138 ] - |         1|       100|7.1695e-05|       0.2|     15.43|         0|
+[ INFO : 2025-09-28 23:57:13,138 ] - |         1|       100|7.1695e-05|       0.2|     15.42|         0|
+[ INFO : 2025-09-28 23:57:13,138 ] - |         1|       100|7.1695e-05|       0.2|    15.412|         0|
+[ INFO : 2025-09-28 23:57:13,139 ] - |         1|       100|7.1695e-05|       0.2|    15.424|         0|
+[ INFO : 2025-09-28 23:57:13,139 ] - |         1|       100|7.1695e-05|       0.2|    15.426|         0|
+[ INFO : 2025-09-28 23:57:13,139 ] - |         1|       100|7.1695e-05|       0.2|    15.419|         0|
+[ INFO : 2025-09-28 23:59:03,166 ] - |         1|       200|0.00013902|       0.2|    15.193|         0|
+[ INFO : 2025-09-28 23:59:03,166 ] - |         1|       200|0.00013902|       0.2|    15.187|         0|
+[ INFO : 2025-09-28 23:59:03,167 ] - |         1|       200|0.00013902|       0.2|    15.195|         0|
+[ INFO : 2025-09-28 23:59:03,167 ] - |         1|       200|0.00013902|       0.2|    15.189|         0|
+[ INFO : 2025-09-28 23:59:03,168 ] - |         1|       200|0.00013902|       0.2|    15.185|         0|
+[ INFO : 2025-09-28 23:59:03,168 ] - |         1|       200|0.00013902|       0.2|    15.195|         0|
+[ INFO : 2025-09-28 23:59:03,168 ] - |         1|       200|0.00013902|       0.2|    15.192|         0|
+[ INFO : 2025-09-28 23:59:03,168 ] - |         1|       200|0.00013902|       0.2|    15.195|         0|
+[ INFO : 2025-09-29 00:00:51,141 ] - |         1|       300|0.00020149|       0.2|    15.137|         0|
+[ INFO : 2025-09-29 00:00:51,145 ] - |         1|       300|0.00020149|       0.2|    15.132|         0|
+[ INFO : 2025-09-29 00:00:51,146 ] - |         1|       300|0.00020149|       0.2|     15.13|         0|
+[ INFO : 2025-09-29 00:00:51,146 ] - |         1|       300|0.00020149|       0.2|    15.134|         0|
+[ INFO : 2025-09-29 00:00:51,148 ] - |         1|       300|0.00020149|       0.2|    15.127|         0|
+[ INFO : 2025-09-29 00:00:51,151 ] - |         1|       300|0.00020149|       0.2|    15.134|         0|
+[ INFO : 2025-09-29 00:00:51,151 ] - |         1|       300|0.00020149|       0.2|    15.131|         0|
+[ INFO : 2025-09-29 00:00:51,154 ] - |         1|       300|0.00020149|       0.2|     15.13|         0|
+[ INFO : 2025-09-29 00:02:39,409 ] - |         1|       400|0.00025937|       0.2|    15.095|         0|
+[ INFO : 2025-09-29 00:02:39,410 ] - |         1|       400|0.00025937|       0.2|     15.09|         0|
+[ INFO : 2025-09-29 00:02:39,410 ] - |         1|       400|0.00025937|       0.2|    15.094|         0|
+[ INFO : 2025-09-29 00:02:39,410 ] - |         1|       400|0.00025937|       0.2|     15.09|         0|
+[ INFO : 2025-09-29 00:02:39,410 ] - |         1|       400|0.00025937|       0.2|    15.092|         0|
+[ INFO : 2025-09-29 00:02:39,410 ] - |         1|       400|0.00025937|       0.2|    15.097|         0|
+[ INFO : 2025-09-29 00:02:39,411 ] - |         1|       400|0.00025937|       0.2|    15.098|         0|
+[ INFO : 2025-09-29 00:02:39,411 ] - |         1|       400|0.00025937|       0.2|    15.091|         0|
+[ INFO : 2025-09-29 00:04:28,813 ] - |         1|       500|0.00031291|       0.2|     15.04|         0|
+[ INFO : 2025-09-29 00:04:28,814 ] - |         1|       500|0.00031291|       0.2|    15.037|         0|
+[ INFO : 2025-09-29 00:04:28,814 ] - |         1|       500|0.00031291|       0.2|    15.035|         0|
+[ INFO : 2025-09-29 00:04:28,814 ] - |         1|       500|0.00031291|       0.2|    15.033|         0|
+[ INFO : 2025-09-29 00:04:28,814 ] - |         1|       500|0.00031291|       0.2|    15.034|         0|
+[ INFO : 2025-09-29 00:04:28,815 ] - |         1|       500|0.00031291|       0.2|    15.033|         0|
+[ INFO : 2025-09-29 00:04:28,815 ] - |         1|       500|0.00031291|       0.2|    15.039|         0|
+[ INFO : 2025-09-29 00:04:28,815 ] - |         1|       500|0.00031291|       0.2|    15.034|         0|
+[ INFO : 2025-09-29 00:06:17,671 ] - |         1|       600|0.00036233|       0.2|    14.982|         0|
+[ INFO : 2025-09-29 00:06:17,671 ] - |         1|       600|0.00036233|       0.2|    14.977|         0|
+[ INFO : 2025-09-29 00:06:17,672 ] - |         1|       600|0.00036233|       0.2|    14.977|         0|
+[ INFO : 2025-09-29 00:06:17,675 ] - |         1|       600|0.00036233|       0.2|    14.976|         0|
+[ INFO : 2025-09-29 00:06:17,675 ] - |         1|       600|0.00036233|       0.2|    14.982|         0|
+[ INFO : 2025-09-29 00:06:17,675 ] - |         1|       600|0.00036233|       0.2|    14.977|         0|
+[ INFO : 2025-09-29 00:06:17,676 ] - |         1|       600|0.00036233|       0.2|    14.976|         0|
+[ INFO : 2025-09-29 00:06:17,677 ] - |         1|       600|0.00036233|       0.2|    14.979|         0|
+[ INFO : 2025-09-29 00:08:07,539 ] - |         1|       700|0.00040787|       0.2|    14.912|         0|
+[ INFO : 2025-09-29 00:08:07,540 ] - |         1|       700|0.00040787|       0.2|    14.903|         0|
+[ INFO : 2025-09-29 00:08:07,540 ] - |         1|       700|0.00040787|       0.2|    14.903|         0|
+[ INFO : 2025-09-29 00:08:07,541 ] - |         1|       700|0.00040787|       0.2|    14.906|         0|
+[ INFO : 2025-09-29 00:08:07,541 ] - |         1|       700|0.00040787|       0.2|    14.907|         0|
+[ INFO : 2025-09-29 00:08:07,541 ] - |         1|       700|0.00040787|       0.2|    14.906|         0|
+[ INFO : 2025-09-29 00:08:07,541 ] - |         1|       700|0.00040787|       0.2|     14.91|         0|
+[ INFO : 2025-09-29 00:08:07,542 ] - |         1|       700|0.00040787|       0.2|      14.9|         0|
+[ INFO : 2025-09-29 00:09:58,037 ] - |         1|       800|0.00044974|       0.2|    14.826|         0|
+[ INFO : 2025-09-29 00:09:58,037 ] - |         1|       800|0.00044974|       0.2|    14.826|         0|
+[ INFO : 2025-09-29 00:09:58,038 ] - |         1|       800|0.00044974|       0.2|    14.833|         0|
+[ INFO : 2025-09-29 00:09:58,038 ] - |         1|       800|0.00044974|       0.2|    14.835|         0|
+[ INFO : 2025-09-29 00:09:58,039 ] - |         1|       800|0.00044974|       0.2|    14.829|         0|
+[ INFO : 2025-09-29 00:09:58,039 ] - |         1|       800|0.00044974|       0.2|     14.83|         0|
+[ INFO : 2025-09-29 00:09:58,039 ] - |         1|       800|0.00044974|       0.2|    14.829|         0|
+[ INFO : 2025-09-29 00:09:58,040 ] - |         1|       800|0.00044974|       0.2|    14.826|         0|
+[ INFO : 2025-09-29 00:11:46,165 ] - |         1|       900|0.00048813|       0.2|    14.759|         0|
+[ INFO : 2025-09-29 00:11:46,166 ] - |         1|       900|0.00048813|       0.2|    14.764|         0|
+[ INFO : 2025-09-29 00:11:46,170 ] - |         1|       900|0.00048813|       0.2|    14.761|         0|
+[ INFO : 2025-09-29 00:11:46,173 ] - |         1|       900|0.00048813|       0.2|    14.757|         0|
+[ INFO : 2025-09-29 00:11:46,175 ] - |         1|       900|0.00048813|       0.2|    14.762|         0|
+[ INFO : 2025-09-29 00:11:46,188 ] - |         1|       900|0.00048813|       0.2|    14.756|         0|
+[ INFO : 2025-09-29 00:11:46,190 ] - |         1|       900|0.00048813|       0.2|    14.765|         0|
+[ INFO : 2025-09-29 00:11:46,203 ] - |         1|       900|0.00048813|       0.2|    14.758|         0|
+[ INFO : 2025-09-29 00:13:35,850 ] - |         1|      1000|0.00052325|       0.2|    14.692|         0|
+[ INFO : 2025-09-29 00:13:35,850 ] - |         1|      1000|0.00052325|       0.2|    14.698|         0|
+[ INFO : 2025-09-29 00:13:35,850 ] - |         1|      1000|0.00052325|       0.2|    14.696|         0|
+[ INFO : 2025-09-29 00:13:35,850 ] - |         1|      1000|0.00052325|       0.2|    14.689|         0|
+[ INFO : 2025-09-29 00:13:35,850 ] - |         1|      1000|0.00052325|       0.2|    14.689|         0|
+[ INFO : 2025-09-29 00:13:35,850 ] - |         1|      1000|0.00052325|       0.2|    14.694|         0|
+[ INFO : 2025-09-29 00:13:35,851 ] - |         1|      1000|0.00052325|       0.2|    14.693|         0|
+[ INFO : 2025-09-29 00:13:35,851 ] - |         1|      1000|0.00052325|       0.2|    14.693|         0|
+[ INFO : 2025-09-29 00:15:09,365 ] - |         1|      1066|0.00054472|       0.2|    14.643|         0|
+[ INFO : 2025-09-29 00:15:09,469 ] - |         1|      1066|0.00054472|       0.2|    14.652|         0|
+[ INFO : 2025-09-29 00:15:09,497 ] - |         1|      1066|0.00054472|       0.2|    14.644|         0|
+[ INFO : 2025-09-29 00:15:09,529 ] - |         1|      1066|0.00054472|       0.2|    14.648|         0|
+[ INFO : 2025-09-29 00:15:09,684 ] - |         1|      1066|0.00054472|       0.2|    14.648|         0|
+[ INFO : 2025-09-29 00:15:09,819 ] - |         1|      1066|0.00054472|       0.2|    14.647|         0|
+[ INFO : 2025-09-29 00:15:09,832 ] - |         1|      1066|0.00054472|       0.2|    14.647|         0|
+[ INFO : 2025-09-29 00:15:10,012 ] - |         1|      1066|0.00054472|       0.2|    14.652|         0|
+slurmstepd: error: *** JOB 13186231 ON nid007087 CANCELLED AT 2025-09-29T00:17:06 ***

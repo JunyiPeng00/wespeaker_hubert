@@ -36,6 +36,8 @@ venv
 exp
 data
 raw_wav
+convert
+v4_pruning/log
 tensorboard
 **/*build*
 

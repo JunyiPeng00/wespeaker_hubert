@@ -126,6 +126,7 @@ def train(config='conf/config.yaml', **kwargs):
                             configs['train_data'],
                             configs['dataset_args'],
                             spk2id_dict,
+                            train_lmdb_file=configs.get('train_lmdb', None),
                             reverb_lmdb_file=configs.get('reverb_data', None),
                             noise_lmdb_file=configs.get('noise_data', None))
     train_dataloader = DataLoader(train_dataset, **configs['dataloader_args'])
@@ -193,6 +194,13 @@ def train(config='conf/config.yaml', **kwargs):
                     'sparsity_schedule': configs.get('sparsity_schedule', 'cosine'),
                     'min_sparsity': configs.get('min_sparsity', 0.0),
                 }
+                if checkpoint is not None:
+                    load_checkpoint(model, checkpoint)
+                    start_epoch = int(re.findall(r"(?<=model_)\d*(?=.pt)",
+                                                checkpoint)[0]) + 1
+                    logger.info('Load checkpoint: {}'.format(checkpoint))
+                else:
+                    start_epoch = 1
 
                 model = apply_quantization_with_hp_integration(
                     model,
@@ -243,11 +251,40 @@ def train(config='conf/config.yaml', **kwargs):
     # If specify checkpoint, load some info from checkpoint.
     # For checkpoint, frontend, speaker model, and projection layer
     # are all needed !!!
-    if checkpoint is not None:
+    if checkpoint is not None and not use_quantization:
         load_checkpoint(model, checkpoint)
         start_epoch = int(re.findall(r"(?<=model_)\d*(?=.pt)",
                                      checkpoint)[0]) + 1
         logger.info('Load checkpoint: {}'.format(checkpoint))
+    elif checkpoint is not None and use_quantization:
+        all_state_dict = torch.load(checkpoint, map_location='cpu')
+        
+        model_state_dict = model.state_dict()
+        loaded_keys = []
+        
+        for key in model_state_dict.keys():
+            if key == 'projection.weight':  # 使用 'in' 支持更灵活的键名匹配
+                if key in all_state_dict:
+                    # 检查维度是否匹配
+                    if model_state_dict[key].shape == all_state_dict[key].shape:
+                        # 直接修改参数tensor的数据
+                        model_state_dict[key].data.copy_(all_state_dict[key])
+                        loaded_keys.append(key)
+                        logger.info('Load projection weight: {} (shape: {})'.format(
+                            key, model_state_dict[key].shape))
+                    else:
+                        logger.warning('Shape mismatch for {}: model {} vs checkpoint {}'.format(
+                            key, model_state_dict[key].shape, all_state_dict[key].shape))
+                else:
+                    logger.warning('Key {} not found in checkpoint'.format(key))
+        
+        if not loaded_keys:
+            logger.warning('No projection.weight keys found in model or checkpoint')
+
+        start_epoch = int(re.findall(r"(?<=model_)\d*(?=.pt)",
+                                     checkpoint)[0]) + 1
+        logger.info('Load checkpoint: {} (loaded {} projection weights)'.format(
+            checkpoint, len(loaded_keys)))
     else:
         start_epoch = 1
     logger.info('start_epoch: {}'.format(start_epoch))
@@ -262,7 +299,14 @@ def train(config='conf/config.yaml', **kwargs):
 
     # ddp_model
     model.cuda()
-    ddp_model = torch.nn.parallel.DistributedDataParallel(model)
+    
+    # Convert BatchNorm2d to SyncBatchNorm for better distributed training
+    if rank == 0:
+        logger.info("Converting BatchNorm2d to SyncBatchNorm...")
+    model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
+
+    ddp_model = torch.nn.parallel.DistributedDataParallel(model, find_unused_parameters=True)
+    ddp_model._set_static_graph()
     device = torch.device("cuda")
 
     criterion = getattr(torch.nn, configs['loss'])(**configs['loss_args'])
@@ -375,11 +419,13 @@ def train(config='conf/config.yaml', **kwargs):
                 pass
 
     # save config.yaml
-    if rank == 0:
+    if rank == 0:  
+        cfg_to_save = {k: v for k, v in configs.items() if k != "lambda_pair"}
         saved_config_path = os.path.join(configs['exp_dir'], 'config.yaml')
         with open(saved_config_path, 'w') as fout:
-            data = yaml.dump(configs)
+            data = yaml.dump(cfg_to_save)
             fout.write(data)
+        logger.info(f"Configuration saved to {saved_config_path}")
 
     # training
     dist.barrier(device_ids=[gpu])  # synchronize here

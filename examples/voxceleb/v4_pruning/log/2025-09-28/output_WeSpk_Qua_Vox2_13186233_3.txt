@@ -1,0 +1,555 @@
+
+
+========================= ROCm System Management Interface =========================
+=================================== Concise Info ===================================
+GPU[1]		: get_power_avg, Not supported on the given system
+GPU[3]		: get_power_avg, Not supported on the given system
+GPU[5]		: get_power_avg, Not supported on the given system
+GPU[7]		: get_power_avg, Not supported on the given system
+GPU  Temp (DieEdge)  AvgPwr  SCLK    MCLK     Fan  Perf    PwrCap  VRAM%  GPU%  
+0    40.0c           92.0W   800Mhz  1600Mhz  0%   manual  500.0W    0%   0%    
+1    51.0c           N/A     800Mhz  1600Mhz  0%   manual  0.0W      0%   0%    
+2    41.0c           89.0W   800Mhz  1600Mhz  0%   manual  500.0W    0%   0%    
+3    46.0c           N/A     800Mhz  1600Mhz  0%   manual  0.0W      0%   0%    
+4    44.0c           87.0W   800Mhz  1600Mhz  0%   manual  500.0W    0%   0%    
+5    45.0c           N/A     800Mhz  1600Mhz  0%   manual  0.0W      0%   0%    
+6    42.0c           84.0W   800Mhz  1600Mhz  0%   manual  500.0W    0%   0%    
+7    44.0c           N/A     800Mhz  1600Mhz  0%   manual  0.0W      0%   0%    
+====================================================================================
+=============================== End of ROCm SMI Log ================================
+pid 93588's current affinity list: 1-7,9-15,17-23,25-31,33-39,41-47,49-55,57-63,65-71,73-79,81-87,89-95,97-103,105-111,113-119,121-127
+pid 93588's new affinity list: 1-7,9-15,17-23,25-31,33-39,41-47,49-55
+Rank 0 --> pid 93588's current affinity mask: fefefefefefefe; GPU 0,1,2,3,4,5,6,7
+Full fine-tuning ...
+
+
+========================= ROCm System Management Interface =========================
+=================================== Concise Info ===================================
+GPU[1]		: get_power_avg, Not supported on the given system
+GPU[3]		: get_power_avg, Not supported on the given system
+GPU[5]		: get_power_avg, Not supported on the given system
+GPU[7]		: get_power_avg, Not supported on the given system
+GPU  Temp (DieEdge)  AvgPwr  SCLK    MCLK     Fan  Perf    PwrCap  VRAM%  GPU%  
+0    40.0c           91.0W   800Mhz  1600Mhz  0%   manual  500.0W    0%   0%    
+1    52.0c           N/A     800Mhz  1600Mhz  0%   manual  0.0W      0%   0%    
+2    41.0c           89.0W   800Mhz  1600Mhz  0%   manual  500.0W    0%   0%    
+3    46.0c           N/A     800Mhz  1600Mhz  0%   manual  0.0W      0%   0%    
+4    44.0c           86.0W   800Mhz  1600Mhz  0%   manual  500.0W    0%   0%    
+5    46.0c           N/A     800Mhz  1600Mhz  0%   manual  0.0W      0%   0%    
+6    41.0c           84.0W   800Mhz  1600Mhz  0%   manual  500.0W    0%   0%    
+7    44.0c           N/A     800Mhz  1600Mhz  0%   manual  0.0W      0%   0%    
+====================================================================================
+=============================== End of ROCm SMI Log ================================
+pid 93671's current affinity list: 1-7,9-15,17-23,25-31,33-39,41-47,49-55
+pid 93671's new affinity list: 1-7,9-15,17-23,25-31,33-39,41-47,49-55
+Rank 0 --> pid 93671's current affinity mask: fefefefefefefe; GPU 0,1,2,3,4,5,6,7
+Start training ...
+./run_wavlm_ori.sh: num_nodes is 1, proc_per_node is 8
+nid005145:93827:93827 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to hsn0,hsn1,hsn2,hsn3
+nid005145:93827:93827 [0] NCCL INFO Bootstrap : Using hsn0:10.253.49.148<0>
+nid005145:93827:93827 [0] NCCL INFO NET/Plugin : No plugin found (librccl-net.so), using internal implementation
+
+nid005145:93827:93827 [0] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:120 NCCL WARN Missing "amd_iommu=on" from kernel command line which can lead to system instablity or hang!
+
+nid005145:93827:93827 [0] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:122 NCCL WARN Missing "iommu=pt" from kernel command line which can lead to system instablity or hang!
+
+nid005145:93827:93827 [0] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:126 NCCL WARN Missing "HSA_FORCE_FINE_GRAIN_PCIE=1" from environment which can lead to low RCCL performance, system instablity or hang!
+RCCL version 2.16.5+hip5.6 HEAD:3dcebc7+
+nid005145:93832:93832 [5] NCCL INFO NCCL_SOCKET_IFNAME set by environment to hsn0,hsn1,hsn2,hsn3
+nid005145:93832:93832 [5] NCCL INFO Bootstrap : Using hsn0:10.253.49.148<0>
+nid005145:93832:93832 [5] NCCL INFO NET/Plugin : No plugin found (librccl-net.so), using internal implementation
+
+nid005145:93832:93832 [5] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:120 NCCL WARN Missing "amd_iommu=on" from kernel command line which can lead to system instablity or hang!
+
+nid005145:93832:93832 [5] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:122 NCCL WARN Missing "iommu=pt" from kernel command line which can lead to system instablity or hang!
+
+nid005145:93832:93832 [5] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:126 NCCL WARN Missing "HSA_FORCE_FINE_GRAIN_PCIE=1" from environment which can lead to low RCCL performance, system instablity or hang!
+nid005145:93828:93828 [1] NCCL INFO NCCL_SOCKET_IFNAME set by environment to hsn0,hsn1,hsn2,hsn3
+nid005145:93828:93828 [1] NCCL INFO Bootstrap : Using hsn0:10.253.49.148<0>
+nid005145:93828:93828 [1] NCCL INFO NET/Plugin : No plugin found (librccl-net.so), using internal implementation
+
+nid005145:93828:93828 [1] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:120 NCCL WARN Missing "amd_iommu=on" from kernel command line which can lead to system instablity or hang!
+
+nid005145:93828:93828 [1] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:122 NCCL WARN Missing "iommu=pt" from kernel command line which can lead to system instablity or hang!
+
+nid005145:93828:93828 [1] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:126 NCCL WARN Missing "HSA_FORCE_FINE_GRAIN_PCIE=1" from environment which can lead to low RCCL performance, system instablity or hang!
+nid005145:93833:93833 [6] NCCL INFO NCCL_SOCKET_IFNAME set by environment to hsn0,hsn1,hsn2,hsn3
+nid005145:93833:93833 [6] NCCL INFO Bootstrap : Using hsn0:10.253.49.148<0>
+nid005145:93833:93833 [6] NCCL INFO NET/Plugin : No plugin found (librccl-net.so), using internal implementation
+
+nid005145:93833:93833 [6] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:120 NCCL WARN Missing "amd_iommu=on" from kernel command line which can lead to system instablity or hang!
+
+nid005145:93833:93833 [6] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:122 NCCL WARN Missing "iommu=pt" from kernel command line which can lead to system instablity or hang!
+
+nid005145:93833:93833 [6] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:126 NCCL WARN Missing "HSA_FORCE_FINE_GRAIN_PCIE=1" from environment which can lead to low RCCL performance, system instablity or hang!
+nid005145:93830:93830 [3] NCCL INFO NCCL_SOCKET_IFNAME set by environment to hsn0,hsn1,hsn2,hsn3
+nid005145:93831:93831 [4] NCCL INFO NCCL_SOCKET_IFNAME set by environment to hsn0,hsn1,hsn2,hsn3
+nid005145:93830:93830 [3] NCCL INFO Bootstrap : Using hsn0:10.253.49.148<0>
+nid005145:93831:93831 [4] NCCL INFO Bootstrap : Using hsn0:10.253.49.148<0>
+nid005145:93830:93830 [3] NCCL INFO NET/Plugin : No plugin found (librccl-net.so), using internal implementation
+nid005145:93831:93831 [4] NCCL INFO NET/Plugin : No plugin found (librccl-net.so), using internal implementation
+
+nid005145:93830:93830 [3] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:120 NCCL WARN Missing "amd_iommu=on" from kernel command line which can lead to system instablity or hang!
+
+nid005145:93830:93830 [3] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:122 NCCL WARN Missing "iommu=pt" from kernel command line which can lead to system instablity or hang!
+
+nid005145:93831:93831 [4] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:120 NCCL WARN Missing "amd_iommu=on" from kernel command line which can lead to system instablity or hang!
+
+nid005145:93830:93830 [3] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:126 NCCL WARN Missing "HSA_FORCE_FINE_GRAIN_PCIE=1" from environment which can lead to low RCCL performance, system instablity or hang!
+
+nid005145:93831:93831 [4] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:122 NCCL WARN Missing "iommu=pt" from kernel command line which can lead to system instablity or hang!
+
+nid005145:93831:93831 [4] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:126 NCCL WARN Missing "HSA_FORCE_FINE_GRAIN_PCIE=1" from environment which can lead to low RCCL performance, system instablity or hang!
+nid005145:93829:93829 [2] NCCL INFO NCCL_SOCKET_IFNAME set by environment to hsn0,hsn1,hsn2,hsn3
+nid005145:93829:93829 [2] NCCL INFO Bootstrap : Using hsn0:10.253.49.148<0>
+nid005145:93829:93829 [2] NCCL INFO NET/Plugin : No plugin found (librccl-net.so), using internal implementation
+
+nid005145:93829:93829 [2] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:120 NCCL WARN Missing "amd_iommu=on" from kernel command line which can lead to system instablity or hang!
+
+nid005145:93829:93829 [2] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:122 NCCL WARN Missing "iommu=pt" from kernel command line which can lead to system instablity or hang!
+
+nid005145:93829:93829 [2] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:126 NCCL WARN Missing "HSA_FORCE_FINE_GRAIN_PCIE=1" from environment which can lead to low RCCL performance, system instablity or hang!
+nid005145:93834:93834 [7] NCCL INFO NCCL_SOCKET_IFNAME set by environment to hsn0,hsn1,hsn2,hsn3
+nid005145:93834:93834 [7] NCCL INFO Bootstrap : Using hsn0:10.253.49.148<0>
+nid005145:93834:93834 [7] NCCL INFO NET/Plugin : No plugin found (librccl-net.so), using internal implementation
+
+nid005145:93834:93834 [7] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:120 NCCL WARN Missing "amd_iommu=on" from kernel command line which can lead to system instablity or hang!
+
+nid005145:93834:93834 [7] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:122 NCCL WARN Missing "iommu=pt" from kernel command line which can lead to system instablity or hang!
+
+nid005145:93834:93834 [7] /long_pathname_so_that_rpms_can_package_the_debug_info/src/extlibs/rccl/build/src/init.cpp:126 NCCL WARN Missing "HSA_FORCE_FINE_GRAIN_PCIE=1" from environment which can lead to low RCCL performance, system instablity or hang!
+nid005145:93829:95398 [2] NCCL INFO Setting hipLimitStackSize to 512 maxLocalSizeBytes 0
+nid005145:93833:95399 [6] NCCL INFO Setting hipLimitStackSize to 512 maxLocalSizeBytes 0
+nid005145:93830:95400 [3] NCCL INFO Setting hipLimitStackSize to 512 maxLocalSizeBytes 0
+nid005145:93834:95401 [7] NCCL INFO Setting hipLimitStackSize to 512 maxLocalSizeBytes 0
+nid005145:93829:95398 [2] NCCL INFO Failed to open libibverbs.so[.1]
+nid005145:93830:95400 [3] NCCL INFO Failed to open libibverbs.so[.1]
+nid005145:93833:95399 [6] NCCL INFO Failed to open libibverbs.so[.1]
+nid005145:93834:95401 [7] NCCL INFO Failed to open libibverbs.so[.1]
+nid005145:93829:95398 [2] NCCL INFO NCCL_SOCKET_IFNAME set by environment to hsn0,hsn1,hsn2,hsn3
+nid005145:93830:95400 [3] NCCL INFO NCCL_SOCKET_IFNAME set by environment to hsn0,hsn1,hsn2,hsn3
+nid005145:93833:95399 [6] NCCL INFO NCCL_SOCKET_IFNAME set by environment to hsn0,hsn1,hsn2,hsn3
+nid005145:93834:95401 [7] NCCL INFO NCCL_SOCKET_IFNAME set by environment to hsn0,hsn1,hsn2,hsn3
+nid005145:93831:95402 [4] NCCL INFO Setting hipLimitStackSize to 512 maxLocalSizeBytes 0
+nid005145:93831:95402 [4] NCCL INFO Failed to open libibverbs.so[.1]
+nid005145:93831:95402 [4] NCCL INFO NCCL_SOCKET_IFNAME set by environment to hsn0,hsn1,hsn2,hsn3
+nid005145:93832:95403 [5] NCCL INFO Setting hipLimitStackSize to 512 maxLocalSizeBytes 0
+nid005145:93832:95403 [5] NCCL INFO Failed to open libibverbs.so[.1]
+nid005145:93832:95403 [5] NCCL INFO NCCL_SOCKET_IFNAME set by environment to hsn0,hsn1,hsn2,hsn3
+nid005145:93829:95398 [2] NCCL INFO NET/Socket : Using [0]hsn0:10.253.49.148<0> [1]hsn1:10.253.49.147<0> [2]hsn2:10.253.47.163<0> [3]hsn3:10.253.47.164<0>
+nid005145:93834:95401 [7] NCCL INFO NET/Socket : Using [0]hsn0:10.253.49.148<0> [1]hsn1:10.253.49.147<0> [2]hsn2:10.253.47.163<0> [3]hsn3:10.253.47.164<0>
+nid005145:93831:95402 [4] NCCL INFO NET/Socket : Using [0]hsn0:10.253.49.148<0> [1]hsn1:10.253.49.147<0> [2]hsn2:10.253.47.163<0> [3]hsn3:10.253.47.164<0>
+nid005145:93833:95399 [6] NCCL INFO NET/Socket : Using [0]hsn0:10.253.49.148<0> [1]hsn1:10.253.49.147<0> [2]hsn2:10.253.47.163<0> [3]hsn3:10.253.47.164<0>
+nid005145:93830:95400 [3] NCCL INFO NET/Socket : Using [0]hsn0:10.253.49.148<0> [1]hsn1:10.253.49.147<0> [2]hsn2:10.253.47.163<0> [3]hsn3:10.253.47.164<0>
+nid005145:93829:95398 [2] NCCL INFO Using network Socket
+nid005145:93834:95401 [7] NCCL INFO Using network Socket
+nid005145:93831:95402 [4] NCCL INFO Using network Socket
+nid005145:93833:95399 [6] NCCL INFO Using network Socket
+nid005145:93830:95400 [3] NCCL INFO Using network Socket
+nid005145:93832:95403 [5] NCCL INFO NET/Socket : Using [0]hsn0:10.253.49.148<0> [1]hsn1:10.253.49.147<0> [2]hsn2:10.253.47.163<0> [3]hsn3:10.253.47.164<0>
+nid005145:93832:95403 [5] NCCL INFO Using network Socket
+nid005145:93827:95404 [0] NCCL INFO Setting hipLimitStackSize to 512 maxLocalSizeBytes 0
+nid005145:93827:95404 [0] NCCL INFO Failed to open libibverbs.so[.1]
+nid005145:93827:95404 [0] NCCL INFO NCCL_SOCKET_IFNAME set by environment to hsn0,hsn1,hsn2,hsn3
+nid005145:93827:95404 [0] NCCL INFO NET/Socket : Using [0]hsn0:10.253.49.148<0> [1]hsn1:10.253.49.147<0> [2]hsn2:10.253.47.163<0> [3]hsn3:10.253.47.164<0>
+nid005145:93827:95404 [0] NCCL INFO Using network Socket
+nid005145:93828:95405 [1] NCCL INFO Setting hipLimitStackSize to 512 maxLocalSizeBytes 0
+nid005145:93828:95405 [1] NCCL INFO Failed to open libibverbs.so[.1]
+nid005145:93828:95405 [1] NCCL INFO NCCL_SOCKET_IFNAME set by environment to hsn0,hsn1,hsn2,hsn3
+nid005145:93828:95405 [1] NCCL INFO NET/Socket : Using [0]hsn0:10.253.49.148<0> [1]hsn1:10.253.49.147<0> [2]hsn2:10.253.47.163<0> [3]hsn3:10.253.47.164<0>
+nid005145:93828:95405 [1] NCCL INFO Using network Socket
+nid005145:93831:95402 [4] NCCL INFO rocm_smi_lib: version 5.0.0.0
+nid005145:93828:95405 [1] NCCL INFO rocm_smi_lib: version 5.0.0.0
+nid005145:93827:95404 [0] NCCL INFO rocm_smi_lib: version 5.0.0.0
+nid005145:93832:95403 [5] NCCL INFO rocm_smi_lib: version 5.0.0.0
+nid005145:93830:95400 [3] NCCL INFO rocm_smi_lib: version 5.0.0.0
+nid005145:93833:95399 [6] NCCL INFO rocm_smi_lib: version 5.0.0.0
+nid005145:93829:95398 [2] NCCL INFO rocm_smi_lib: version 5.0.0.0
+nid005145:93834:95401 [7] NCCL INFO rocm_smi_lib: version 5.0.0.0
+nid005145:93831:95402 [4] NCCL INFO Setting affinity for GPU 4 to fefe
+nid005145:93827:95404 [0] NCCL INFO Setting affinity for GPU 0 to fe0000,00000000
+nid005145:93828:95405 [1] NCCL INFO Setting affinity for GPU 1 to fe0000,00000000
+nid005145:93832:95403 [5] NCCL INFO Setting affinity for GPU 5 to fefe
+nid005145:93834:95401 [7] NCCL INFO Setting affinity for GPU 7 to fefe,00000000
+nid005145:93833:95399 [6] NCCL INFO Setting affinity for GPU 6 to fefe,00000000
+nid005145:93830:95400 [3] NCCL INFO Setting affinity for GPU 3 to fefe0000
+nid005145:93829:95398 [2] NCCL INFO Setting affinity for GPU 2 to fefe0000
+nid005145:93827:95404 [0] NCCL INFO Channel 00/16 :    0   1   3   2   4   5   7   6
+nid005145:93828:95405 [1] NCCL INFO Trees [0] 3/-1/-1->1->0 [1] 0/-1/-1->1->3 [2] 5/-1/-1->1->0 [3] 0/-1/-1->1->5 [4] 3/-1/-1->1->0 [5] 0/-1/-1->1->3 [6] 5/-1/-1->1->0 [7] 0/-1/-1->1->5 [8] 3/-1/-1->1->0 [9] 0/-1/-1->1->3 [10] 5/-1/-1->1->0 [11] 0/-1/-1->1->5 [12] 3/-1/-1->1->0 [13] 0/-1/-1->1->3 [14] 5/-1/-1->1->0 [15] 0/-1/-1->1->5 comm 0xba3f710 nRanks 08 busId c6000
+nid005145:93834:95401 [7] NCCL INFO Trees [0] 6/-1/-1->7->5 [1] 5/-1/-1->7->6 [2] 3/-1/-1->7->6 [3] 6/-1/-1->7->3 [4] 6/-1/-1->7->5 [5] 5/-1/-1->7->6 [6] 3/-1/-1->7->6 [7] 6/-1/-1->7->3 [8] 6/-1/-1->7->5 [9] 5/-1/-1->7->6 [10] 3/-1/-1->7->6 [11] 6/-1/-1->7->3 [12] 6/-1/-1->7->5 [13] 5/-1/-1->7->6 [14] 3/-1/-1->7->6 [15] 6/-1/-1->7->3 comm 0xba3b930 nRanks 08 busId de000
+nid005145:93833:95399 [6] NCCL INFO Trees [0] -1/-1/-1->6->7 [1] 7/-1/-1->6->-1 [2] 7/-1/-1->6->4 [3] 4/-1/-1->6->7 [4] -1/-1/-1->6->7 [5] 7/-1/-1->6->-1 [6] 7/-1/-1->6->4 [7] 4/-1/-1->6->7 [8] -1/-1/-1->6->7 [9] 7/-1/-1->6->-1 [10] 7/-1/-1->6->4 [11] 4/-1/-1->6->7 [12] -1/-1/-1->6->7 [13] 7/-1/-1->6->-1 [14] 7/-1/-1->6->4 [15] 4/-1/-1->6->7 comm 0xba35690 nRanks 08 busId d9000
+nid005145:93827:95404 [0] NCCL INFO Channel 01/16 :    0   6   7   5   4   2   3   1
+nid005145:93832:95403 [5] NCCL INFO Trees [0] 7/-1/-1->5->4 [1] 4/-1/-1->5->7 [2] 4/-1/-1->5->1 [3] 1/-1/-1->5->4 [4] 7/-1/-1->5->4 [5] 4/-1/-1->5->7 [6] 4/-1/-1->5->1 [7] 1/-1/-1->5->4 [8] 7/-1/-1->5->4 [9] 4/-1/-1->5->7 [10] 4/-1/-1->5->1 [11] 1/-1/-1->5->4 [12] 7/-1/-1->5->4 [13] 4/-1/-1->5->7 [14] 4/-1/-1->5->1 [15] 1/-1/-1->5->4 comm 0xba3eff0 nRanks 08 busId d6000
+nid005145:93831:95402 [4] NCCL INFO Trees [0] 5/-1/-1->4->2 [1] 2/-1/-1->4->5 [2] 6/-1/-1->4->5 [3] 5/-1/-1->4->6 [4] 5/-1/-1->4->2 [5] 2/-1/-1->4->5 [6] 6/-1/-1->4->5 [7] 5/-1/-1->4->6 [8] 5/-1/-1->4->2 [9] 2/-1/-1->4->5 [10] 6/-1/-1->4->5 [11] 5/-1/-1->4->6 [12] 5/-1/-1->4->2 [13] 2/-1/-1->4->5 [14] 6/-1/-1->4->5 [15] 5/-1/-1->4->6 comm 0xba352f0 nRanks 08 busId d1000
+nid005145:93830:95400 [3] NCCL INFO Trees [0] 2/-1/-1->3->1 [1] 1/-1/-1->3->2 [2] 2/-1/-1->3->7 [3] 7/-1/-1->3->2 [4] 2/-1/-1->3->1 [5] 1/-1/-1->3->2 [6] 2/-1/-1->3->7 [7] 7/-1/-1->3->2 [8] 2/-1/-1->3->1 [9] 1/-1/-1->3->2 [10] 2/-1/-1->3->7 [11] 7/-1/-1->3->2 [12] 2/-1/-1->3->1 [13] 1/-1/-1->3->2 [14] 2/-1/-1->3->7 [15] 7/-1/-1->3->2 comm 0xba35e20 nRanks 08 busId ce000
+nid005145:93829:95398 [2] NCCL INFO Trees [0] 4/-1/-1->2->3 [1] 3/-1/-1->2->4 [2] -1/-1/-1->2->3 [3] 3/-1/-1->2->-1 [4] 4/-1/-1->2->3 [5] 3/-1/-1->2->4 [6] -1/-1/-1->2->3 [7] 3/-1/-1->2->-1 [8] 4/-1/-1->2->3 [9] 3/-1/-1->2->4 [10] -1/-1/-1->2->3 [11] 3/-1/-1->2->-1 [12] 4/-1/-1->2->3 [13] 3/-1/-1->2->4 [14] -1/-1/-1->2->3 [15] 3/-1/-1->2->-1 comm 0xba32e70 nRanks 08 busId c9000
+nid005145:93828:95405 [1] NCCL INFO P2P Chunksize set to 524288
+nid005145:93834:95401 [7] NCCL INFO P2P Chunksize set to 524288
+nid005145:93833:95399 [6] NCCL INFO P2P Chunksize set to 524288
+nid005145:93827:95404 [0] NCCL INFO Channel 02/16 :    0   1   5   4   6   7   3   2
+nid005145:93832:95403 [5] NCCL INFO P2P Chunksize set to 524288
+nid005145:93831:95402 [4] NCCL INFO P2P Chunksize set to 524288
+nid005145:93830:95400 [3] NCCL INFO P2P Chunksize set to 524288
+nid005145:93829:95398 [2] NCCL INFO P2P Chunksize set to 524288
+nid005145:93827:95404 [0] NCCL INFO Channel 03/16 :    0   2   3   7   6   4   5   1
+nid005145:93827:95404 [0] NCCL INFO Channel 04/16 :    0   1   3   2   4   5   7   6
+nid005145:93827:95404 [0] NCCL INFO Channel 05/16 :    0   6   7   5   4   2   3   1
+nid005145:93827:95404 [0] NCCL INFO Channel 06/16 :    0   1   5   4   6   7   3   2
+nid005145:93827:95404 [0] NCCL INFO Channel 07/16 :    0   2   3   7   6   4   5   1
+nid005145:93827:95404 [0] NCCL INFO Channel 08/16 :    0   1   3   2   4   5   7   6
+nid005145:93827:95404 [0] NCCL INFO Channel 09/16 :    0   6   7   5   4   2   3   1
+nid005145:93827:95404 [0] NCCL INFO Channel 10/16 :    0   1   5   4   6   7   3   2
+nid005145:93827:95404 [0] NCCL INFO Channel 11/16 :    0   2   3   7   6   4   5   1
+nid005145:93827:95404 [0] NCCL INFO Channel 12/16 :    0   1   3   2   4   5   7   6
+nid005145:93827:95404 [0] NCCL INFO Channel 13/16 :    0   6   7   5   4   2   3   1
+nid005145:93827:95404 [0] NCCL INFO Channel 14/16 :    0   1   5   4   6   7   3   2
+nid005145:93827:95404 [0] NCCL INFO Channel 15/16 :    0   2   3   7   6   4   5   1
+nid005145:93827:95404 [0] NCCL INFO Trees [0] 1/-1/-1->0->-1 [1] -1/-1/-1->0->1 [2] 1/-1/-1->0->-1 [3] -1/-1/-1->0->1 [4] 1/-1/-1->0->-1 [5] -1/-1/-1->0->1 [6] 1/-1/-1->0->-1 [7] -1/-1/-1->0->1 [8] 1/-1/-1->0->-1 [9] -1/-1/-1->0->1 [10] 1/-1/-1->0->-1 [11] -1/-1/-1->0->1 [12] 1/-1/-1->0->-1 [13] -1/-1/-1->0->1 [14] 1/-1/-1->0->-1 [15] -1/-1/-1->0->1 comm 0xba34680 nRanks 08 busId c1000
+nid005145:93833:95399 [6] NCCL INFO Channel 01/0 : 6[d9000] -> 7[de000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO P2P Chunksize set to 524288
+nid005145:93831:95402 [4] NCCL INFO Channel 00/0 : 4[d1000] -> 5[d6000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 01/0 : 2[c9000] -> 3[ce000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 02/0 : 6[d9000] -> 7[de000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 00/0 : 0[c1000] -> 1[c6000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 03/0 : 4[d1000] -> 5[d6000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 03/0 : 2[c9000] -> 3[ce000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 05/0 : 6[d9000] -> 7[de000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 04/0 : 4[d1000] -> 5[d6000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 05/0 : 2[c9000] -> 3[ce000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 06/0 : 6[d9000] -> 7[de000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 02/0 : 0[c1000] -> 1[c6000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 07/0 : 4[d1000] -> 5[d6000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 07/0 : 2[c9000] -> 3[ce000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 09/0 : 6[d9000] -> 7[de000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 04/0 : 0[c1000] -> 1[c6000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 08/0 : 4[d1000] -> 5[d6000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 09/0 : 2[c9000] -> 3[ce000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 10/0 : 6[d9000] -> 7[de000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 06/0 : 0[c1000] -> 1[c6000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 11/0 : 4[d1000] -> 5[d6000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 11/0 : 2[c9000] -> 3[ce000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 13/0 : 6[d9000] -> 7[de000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 08/0 : 0[c1000] -> 1[c6000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 12/0 : 4[d1000] -> 5[d6000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 13/0 : 2[c9000] -> 3[ce000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 14/0 : 6[d9000] -> 7[de000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 10/0 : 0[c1000] -> 1[c6000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 15/0 : 4[d1000] -> 5[d6000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 15/0 : 2[c9000] -> 3[ce000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 12/0 : 0[c1000] -> 1[c6000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 14/0 : 0[c1000] -> 1[c6000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 00/0 : 5[d6000] -> 7[de000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 04/0 : 5[d6000] -> 7[de000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 08/0 : 5[d6000] -> 7[de000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 00/0 : 6[d9000] -> 0[c1000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 12/0 : 5[d6000] -> 7[de000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 00/0 : 2[c9000] -> 4[d1000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 04/0 : 6[d9000] -> 0[c1000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 02/0 : 4[d1000] -> 6[d9000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 04/0 : 2[c9000] -> 4[d1000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 08/0 : 6[d9000] -> 0[c1000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 06/0 : 4[d1000] -> 6[d9000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 08/0 : 2[c9000] -> 4[d1000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 12/0 : 6[d9000] -> 0[c1000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 10/0 : 4[d1000] -> 6[d9000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 12/0 : 2[c9000] -> 4[d1000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 14/0 : 4[d1000] -> 6[d9000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 03/0 : 5[d6000] -> 1[c6000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 02/0 : 7[de000] -> 3[ce000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 07/0 : 5[d6000] -> 1[c6000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 06/0 : 7[de000] -> 3[ce000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 11/0 : 5[d6000] -> 1[c6000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 10/0 : 7[de000] -> 3[ce000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 15/0 : 5[d6000] -> 1[c6000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 14/0 : 7[de000] -> 3[ce000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 01/0 : 4[d1000] -> 2[c9000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 05/0 : 4[d1000] -> 2[c9000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 09/0 : 4[d1000] -> 2[c9000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 13/0 : 4[d1000] -> 2[c9000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 00/0 : 1[c6000] -> 3[ce000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 04/0 : 1[c6000] -> 3[ce000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 08/0 : 1[c6000] -> 3[ce000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 12/0 : 1[c6000] -> 3[ce000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 03/0 : 0[c1000] -> 2[c9000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 07/0 : 0[c1000] -> 2[c9000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 11/0 : 0[c1000] -> 2[c9000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 15/0 : 0[c1000] -> 2[c9000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 02/0 : 1[c6000] -> 5[d6000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 03/0 : 3[ce000] -> 7[de000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 06/0 : 1[c6000] -> 5[d6000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 07/0 : 3[ce000] -> 7[de000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 10/0 : 1[c6000] -> 5[d6000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 11/0 : 3[ce000] -> 7[de000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 14/0 : 1[c6000] -> 5[d6000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 15/0 : 3[ce000] -> 7[de000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 03/0 : 6[d9000] -> 4[d1000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 01/0 : 0[c1000] -> 6[d9000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 07/0 : 6[d9000] -> 4[d1000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 05/0 : 0[c1000] -> 6[d9000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 02/0 : 2[c9000] -> 0[c1000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 11/0 : 6[d9000] -> 4[d1000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 09/0 : 0[c1000] -> 6[d9000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 06/0 : 2[c9000] -> 0[c1000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 15/0 : 6[d9000] -> 4[d1000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 13/0 : 0[c1000] -> 6[d9000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 10/0 : 2[c9000] -> 0[c1000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 01/0 : 3[ce000] -> 1[c6000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 01/0 : 7[de000] -> 5[d6000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 14/0 : 2[c9000] -> 0[c1000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 05/0 : 7[de000] -> 5[d6000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 05/0 : 3[ce000] -> 1[c6000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 09/0 : 7[de000] -> 5[d6000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 09/0 : 3[ce000] -> 1[c6000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 13/0 : 7[de000] -> 5[d6000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 13/0 : 3[ce000] -> 1[c6000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 01/0 : 1[c6000] -> 0[c1000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 00/0 : 7[de000] -> 6[d9000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 00/0 : 3[ce000] -> 2[c9000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 01/0 : 5[d6000] -> 4[d1000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 03/0 : 1[c6000] -> 0[c1000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 03/0 : 7[de000] -> 6[d9000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 02/0 : 3[ce000] -> 2[c9000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 02/0 : 5[d6000] -> 4[d1000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 05/0 : 1[c6000] -> 0[c1000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 04/0 : 7[de000] -> 6[d9000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 04/0 : 3[ce000] -> 2[c9000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 05/0 : 5[d6000] -> 4[d1000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 07/0 : 1[c6000] -> 0[c1000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 07/0 : 7[de000] -> 6[d9000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 06/0 : 3[ce000] -> 2[c9000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 06/0 : 5[d6000] -> 4[d1000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 09/0 : 1[c6000] -> 0[c1000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 08/0 : 7[de000] -> 6[d9000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 08/0 : 3[ce000] -> 2[c9000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 09/0 : 5[d6000] -> 4[d1000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 11/0 : 1[c6000] -> 0[c1000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 11/0 : 7[de000] -> 6[d9000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 10/0 : 3[ce000] -> 2[c9000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 10/0 : 5[d6000] -> 4[d1000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 13/0 : 1[c6000] -> 0[c1000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 12/0 : 7[de000] -> 6[d9000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 12/0 : 3[ce000] -> 2[c9000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 13/0 : 5[d6000] -> 4[d1000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 15/0 : 1[c6000] -> 0[c1000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 15/0 : 7[de000] -> 6[d9000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 14/0 : 3[ce000] -> 2[c9000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 14/0 : 5[d6000] -> 4[d1000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Connected all rings comm 0xba34680 nRanks 08 busId c1000
+nid005145:93827:95404 [0] NCCL INFO Channel 01/0 : 0[c1000] -> 1[c6000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Connected all rings comm 0xba3f710 nRanks 08 busId c6000
+nid005145:93833:95399 [6] NCCL INFO Connected all rings comm 0xba35690 nRanks 08 busId d9000
+nid005145:93834:95401 [7] NCCL INFO Connected all rings comm 0xba3b930 nRanks 08 busId de000
+nid005145:93833:95399 [6] NCCL INFO Channel 00/0 : 6[d9000] -> 7[de000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Connected all rings comm 0xba352f0 nRanks 08 busId d1000
+nid005145:93830:95400 [3] NCCL INFO Connected all rings comm 0xba35e20 nRanks 08 busId ce000
+nid005145:93832:95403 [5] NCCL INFO Connected all rings comm 0xba3eff0 nRanks 08 busId d6000
+nid005145:93829:95398 [2] NCCL INFO Connected all rings comm 0xba32e70 nRanks 08 busId c9000
+nid005145:93831:95402 [4] NCCL INFO Channel 01/0 : 4[d1000] -> 5[d6000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 00/0 : 2[c9000] -> 3[ce000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 03/0 : 0[c1000] -> 1[c6000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 03/0 : 6[d9000] -> 7[de000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 05/0 : 0[c1000] -> 1[c6000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 02/0 : 4[d1000] -> 5[d6000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 02/0 : 2[c9000] -> 3[ce000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 04/0 : 6[d9000] -> 7[de000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 07/0 : 0[c1000] -> 1[c6000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 05/0 : 4[d1000] -> 5[d6000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 04/0 : 2[c9000] -> 3[ce000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 07/0 : 6[d9000] -> 7[de000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 09/0 : 0[c1000] -> 1[c6000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 06/0 : 4[d1000] -> 5[d6000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 06/0 : 2[c9000] -> 3[ce000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 08/0 : 6[d9000] -> 7[de000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 11/0 : 0[c1000] -> 1[c6000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 09/0 : 4[d1000] -> 5[d6000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 08/0 : 2[c9000] -> 3[ce000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 11/0 : 6[d9000] -> 7[de000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 13/0 : 0[c1000] -> 1[c6000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 10/0 : 4[d1000] -> 5[d6000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 10/0 : 2[c9000] -> 3[ce000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 12/0 : 6[d9000] -> 7[de000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93827:95404 [0] NCCL INFO Channel 15/0 : 0[c1000] -> 1[c6000] via P2P/IPC comm 0xba34680 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 13/0 : 4[d1000] -> 5[d6000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 12/0 : 2[c9000] -> 3[ce000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 15/0 : 6[d9000] -> 7[de000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 14/0 : 4[d1000] -> 5[d6000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 14/0 : 2[c9000] -> 3[ce000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 01/0 : 1[c6000] -> 3[ce000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 05/0 : 1[c6000] -> 3[ce000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 01/0 : 5[d6000] -> 7[de000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 01/0 : 2[c9000] -> 4[d1000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 09/0 : 1[c6000] -> 3[ce000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 05/0 : 5[d6000] -> 7[de000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 13/0 : 1[c6000] -> 3[ce000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 05/0 : 2[c9000] -> 4[d1000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 09/0 : 5[d6000] -> 7[de000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 09/0 : 2[c9000] -> 4[d1000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 13/0 : 5[d6000] -> 7[de000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93829:95398 [2] NCCL INFO Channel 13/0 : 2[c9000] -> 4[d1000] via P2P/IPC comm 0xba32e70 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 03/0 : 4[d1000] -> 6[d9000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 07/0 : 4[d1000] -> 6[d9000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 11/0 : 4[d1000] -> 6[d9000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 15/0 : 4[d1000] -> 6[d9000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 03/0 : 7[de000] -> 3[ce000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 02/0 : 5[d6000] -> 1[c6000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 03/0 : 1[c6000] -> 5[d6000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 02/0 : 3[ce000] -> 7[de000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 07/0 : 7[de000] -> 3[ce000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 06/0 : 5[d6000] -> 1[c6000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 02/0 : 6[d9000] -> 4[d1000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 07/0 : 1[c6000] -> 5[d6000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 06/0 : 3[ce000] -> 7[de000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 11/0 : 7[de000] -> 3[ce000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 10/0 : 5[d6000] -> 1[c6000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 11/0 : 1[c6000] -> 5[d6000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 06/0 : 6[d9000] -> 4[d1000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 10/0 : 3[ce000] -> 7[de000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 15/0 : 7[de000] -> 3[ce000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 14/0 : 5[d6000] -> 1[c6000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 15/0 : 1[c6000] -> 5[d6000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 10/0 : 6[d9000] -> 4[d1000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 14/0 : 3[ce000] -> 7[de000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93833:95399 [6] NCCL INFO Channel 14/0 : 6[d9000] -> 4[d1000] via P2P/IPC comm 0xba35690 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 00/0 : 4[d1000] -> 2[c9000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 04/0 : 4[d1000] -> 2[c9000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 00/0 : 7[de000] -> 5[d6000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 08/0 : 4[d1000] -> 2[c9000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 00/0 : 3[ce000] -> 1[c6000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 04/0 : 7[de000] -> 5[d6000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93831:95402 [4] NCCL INFO Channel 12/0 : 4[d1000] -> 2[c9000] via P2P/IPC comm 0xba352f0 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 04/0 : 3[ce000] -> 1[c6000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 08/0 : 7[de000] -> 5[d6000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 08/0 : 3[ce000] -> 1[c6000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 12/0 : 7[de000] -> 5[d6000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 12/0 : 3[ce000] -> 1[c6000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 00/0 : 5[d6000] -> 4[d1000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 01/0 : 7[de000] -> 6[d9000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 00/0 : 1[c6000] -> 0[c1000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 01/0 : 3[ce000] -> 2[c9000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 03/0 : 5[d6000] -> 4[d1000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 02/0 : 7[de000] -> 6[d9000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 02/0 : 1[c6000] -> 0[c1000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 04/0 : 5[d6000] -> 4[d1000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 03/0 : 3[ce000] -> 2[c9000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 05/0 : 7[de000] -> 6[d9000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 04/0 : 1[c6000] -> 0[c1000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 07/0 : 5[d6000] -> 4[d1000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 05/0 : 3[ce000] -> 2[c9000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 06/0 : 7[de000] -> 6[d9000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 06/0 : 1[c6000] -> 0[c1000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 08/0 : 5[d6000] -> 4[d1000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 07/0 : 3[ce000] -> 2[c9000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 09/0 : 7[de000] -> 6[d9000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 08/0 : 1[c6000] -> 0[c1000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 11/0 : 5[d6000] -> 4[d1000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 09/0 : 3[ce000] -> 2[c9000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 10/0 : 7[de000] -> 6[d9000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 10/0 : 1[c6000] -> 0[c1000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 12/0 : 5[d6000] -> 4[d1000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 11/0 : 3[ce000] -> 2[c9000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 13/0 : 7[de000] -> 6[d9000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 12/0 : 1[c6000] -> 0[c1000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Channel 15/0 : 5[d6000] -> 4[d1000] via P2P/IPC comm 0xba3eff0 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 13/0 : 3[ce000] -> 2[c9000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93834:95401 [7] NCCL INFO Channel 14/0 : 7[de000] -> 6[d9000] via P2P/IPC comm 0xba3b930 nRanks 08
+nid005145:93828:95405 [1] NCCL INFO Channel 14/0 : 1[c6000] -> 0[c1000] via P2P/IPC comm 0xba3f710 nRanks 08
+nid005145:93830:95400 [3] NCCL INFO Channel 15/0 : 3[ce000] -> 2[c9000] via P2P/IPC comm 0xba35e20 nRanks 08
+nid005145:93832:95403 [5] NCCL INFO Connected all trees
+nid005145:93827:95404 [0] NCCL INFO Connected all trees
+nid005145:93828:95405 [1] NCCL INFO Connected all trees
+nid005145:93832:95403 [5] NCCL INFO threadThresholds 8/8/64 | 64/8/64 | 256 | 256
+nid005145:93829:95398 [2] NCCL INFO Connected all trees
+nid005145:93828:95405 [1] NCCL INFO threadThresholds 8/8/64 | 64/8/64 | 256 | 256
+nid005145:93830:95400 [3] NCCL INFO Connected all trees
+nid005145:93831:95402 [4] NCCL INFO Connected all trees
+nid005145:93832:95403 [5] NCCL INFO 16 coll channels, 16 p2p channels, 2 p2p channels per peer
+nid005145:93827:95404 [0] NCCL INFO threadThresholds 8/8/64 | 64/8/64 | 256 | 256
+nid005145:93829:95398 [2] NCCL INFO threadThresholds 8/8/64 | 64/8/64 | 256 | 256
+nid005145:93828:95405 [1] NCCL INFO 16 coll channels, 16 p2p channels, 2 p2p channels per peer
+nid005145:93830:95400 [3] NCCL INFO threadThresholds 8/8/64 | 64/8/64 | 256 | 256
+nid005145:93831:95402 [4] NCCL INFO threadThresholds 8/8/64 | 64/8/64 | 256 | 256
+nid005145:93827:95404 [0] NCCL INFO 16 coll channels, 16 p2p channels, 2 p2p channels per peer
+nid005145:93829:95398 [2] NCCL INFO 16 coll channels, 16 p2p channels, 2 p2p channels per peer
+nid005145:93830:95400 [3] NCCL INFO 16 coll channels, 16 p2p channels, 2 p2p channels per peer
+nid005145:93831:95402 [4] NCCL INFO 16 coll channels, 16 p2p channels, 2 p2p channels per peer
+nid005145:93833:95399 [6] NCCL INFO Connected all trees
+nid005145:93833:95399 [6] NCCL INFO threadThresholds 8/8/64 | 64/8/64 | 256 | 256
+nid005145:93834:95401 [7] NCCL INFO Connected all trees
+nid005145:93833:95399 [6] NCCL INFO 16 coll channels, 16 p2p channels, 2 p2p channels per peer
+nid005145:93834:95401 [7] NCCL INFO threadThresholds 8/8/64 | 64/8/64 | 256 | 256
+nid005145:93834:95401 [7] NCCL INFO 16 coll channels, 16 p2p channels, 2 p2p channels per peer
+nid005145:93829:95398 [2] NCCL INFO MSCCL: No external scheduler found, using internal implementation
+nid005145:93830:95400 [3] NCCL INFO MSCCL: No external scheduler found, using internal implementation
+nid005145:93833:95399 [6] NCCL INFO MSCCL: No external scheduler found, using internal implementation
+nid005145:93834:95401 [7] NCCL INFO MSCCL: No external scheduler found, using internal implementation
+nid005145:93831:95402 [4] NCCL INFO MSCCL: No external scheduler found, using internal implementation
+nid005145:93832:95403 [5] NCCL INFO MSCCL: No external scheduler found, using internal implementation
+nid005145:93827:95404 [0] NCCL INFO MSCCL: No external scheduler found, using internal implementation
+nid005145:93828:95405 [1] NCCL INFO MSCCL: No external scheduler found, using internal implementation
+nid005145:93834:95401 [7] NCCL INFO MSCCL: Initialization finished, localSize 512
+nid005145:93833:95399 [6] NCCL INFO MSCCL: Initialization finished, localSize 512
+nid005145:93829:95398 [2] NCCL INFO MSCCL: Initialization finished, localSize 512
+nid005145:93827:95404 [0] NCCL INFO MSCCL: Initialization finished, localSize 512
+nid005145:93830:95400 [3] NCCL INFO MSCCL: Initialization finished, localSize 512
+nid005145:93828:95405 [1] NCCL INFO MSCCL: Initialization finished, localSize 512
+nid005145:93831:95402 [4] NCCL INFO MSCCL: Initialization finished, localSize 512
+nid005145:93832:95403 [5] NCCL INFO MSCCL: Initialization finished, localSize 512
+nid005145:93827:95404 [0] NCCL INFO comm 0xba34680 rank 0 nranks 8 cudaDev 0 busId c1000 localSize 0 used 335680080 bytes - Init COMPLETE
+nid005145:93829:95398 [2] NCCL INFO comm 0xba32e70 rank 2 nranks 8 cudaDev 2 busId c9000 localSize 0 used 369234512 bytes - Init COMPLETE
+nid005145:93830:95400 [3] NCCL INFO comm 0xba35e20 rank 3 nranks 8 cudaDev 3 busId ce000 localSize 0 used 402788944 bytes - Init COMPLETE
+nid005145:93828:95405 [1] NCCL INFO comm 0xba3f710 rank 1 nranks 8 cudaDev 1 busId c6000 localSize 0 used 402788944 bytes - Init COMPLETE
+nid005145:93833:95399 [6] NCCL INFO comm 0xba35690 rank 6 nranks 8 cudaDev 6 busId d9000 localSize 0 used 369234512 bytes - Init COMPLETE
+nid005145:93834:95401 [7] NCCL INFO comm 0xba3b930 rank 7 nranks 8 cudaDev 7 busId de000 localSize 0 used 402788944 bytes - Init COMPLETE
+nid005145:93831:95402 [4] NCCL INFO comm 0xba352f0 rank 4 nranks 8 cudaDev 4 busId d1000 localSize 0 used 402788944 bytes - Init COMPLETE
+nid005145:93832:95403 [5] NCCL INFO comm 0xba3eff0 rank 5 nranks 8 cudaDev 5 busId d6000 localSize 0 used 402788944 bytes - Init COMPLETE
+Path ends with pth, assuming it is a pre-converted model: /scratch/project_465002053/junyi/sv/wespeaker_dev/wespeaker_hubert/examples/voxceleb/v4_pruning/convert/wavlm_base_plus.hf.pth
+Enabled pruning units: set()
+[wavlm_base_plus] Loaded pretrained ckpt to upstream: missing=0, unexpected=0
+Step 1: Applying quantization...
+Step 1: Applying quantization...
+Step 1: Applying quantization...
+Step 1: Applying quantization...
+Step 1: Applying quantization...
+Step 1: Applying quantization...
+Step 1: Applying quantization...
+Step 1: Applying quantization...
+Quantization applied successfully:
+  - Converted modules: 123
+  - Preserved gating: 0
+  - Skipped modules: 0
+Step 3: Setting up quantization-aware training...
+Quantization applied successfully:
+  - Converted modules: 123
+  - Preserved gating: 0
+  - Skipped modules: 0
+Step 3: Setting up quantization-aware training...
+Quantization applied successfully:
+  - Converted modules: 123
+  - Preserved gating: 0
+  - Skipped modules: 0
+Step 3: Setting up quantization-aware training...
+Quantization applied successfully:
+  - Converted modules: 123
+  - Preserved gating: 0
+  - Skipped modules: 0
+Step 3: Setting up quantization-aware training...
+Quantization applied successfully:
+  - Converted modules: 123
+  - Preserved gating: 0
+  - Skipped modules: 0
+Step 3: Setting up quantization-aware training...
+Quantization applied successfully:
+  - Converted modules: 123
+  - Preserved gating: 0
+  - Skipped modules: 0
+Step 3: Setting up quantization-aware training...
+Quantization applied successfully:
+  - Converted modules: 123
+  - Preserved gating: 0
+  - Skipped modules: 0
+Step 3: Setting up quantization-aware training...
+Quantization applied successfully:
+  - Converted modules: 123
+  - Preserved gating: 0
+  - Skipped modules: 0
+Step 3: Setting up quantization-aware training...
