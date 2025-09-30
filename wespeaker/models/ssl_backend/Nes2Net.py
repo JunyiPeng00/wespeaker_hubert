@@ -141,7 +141,7 @@ def debug_backend():
         out = model(x)
 
     print("Input shape:", x.shape)       # B x T x D
-    print("Output shape:", out.shape)    # B x embed_dim，如 (8, 128)
+    print("Output shape:", out.shape)    # B x embed_dim, e.g., (8, 128)
 
 if __name__ == "__main__":
     debug_backend()

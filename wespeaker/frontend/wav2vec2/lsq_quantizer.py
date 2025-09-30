@@ -81,11 +81,14 @@ class LSQQuantizerFunction(torch.autograd.Function):
                 zero_point = torch.tensor(zero_point, device=x.device, dtype=x.dtype)
 
         # Quantization process (with zero_point for asymmetric)
-        # 1. Scale-and-shift to integer domain
+        # 1. Scale-and-shift to integer domain with numerical stability
+        min_step_size = torch.finfo(x.dtype).eps * 10  # Minimum step size for stability
+        step_size_clamped = torch.clamp(step_size, min=min_step_size)
+        
         if symmetric:
-            x_scaled = x / step_size
+            x_scaled = x / step_size_clamped
         else:
-            x_scaled = x / step_size + zero_point
+            x_scaled = x / step_size_clamped + zero_point
 
         # 2. Clamp to quantization range
         x_clamped = torch.clamp(x_scaled, q_min, q_max)
@@ -95,9 +98,9 @@ class LSQQuantizerFunction(torch.autograd.Function):
 
         # 4. Dequantize back to float domain
         if symmetric:
-            x_quantized = x_rounded * step_size
+            x_quantized = x_rounded * step_size_clamped
         else:
-            x_quantized = (x_rounded - zero_point) * step_size
+            x_quantized = (x_rounded - zero_point) * step_size_clamped
         
         return x_quantized
     
@@ -139,10 +142,13 @@ class LSQQuantizerFunction(torch.autograd.Function):
                 zero_point = torch.tensor(zero_point, device=x.device, dtype=x.dtype)
 
         # Gradient for input x: STE with clamping mask
+        min_step_size = torch.finfo(x.dtype).eps * 10
+        step_size_clamped = torch.clamp(step_size, min=min_step_size)
+        
         if symmetric:
-            x_scaled = x / step_size
+            x_scaled = x / step_size_clamped
         else:
-            x_scaled = x / step_size + zero_point
+            x_scaled = x / step_size_clamped + zero_point
 
         x_scaled_clamped = torch.clamp(x_scaled, q_min, q_max)
         x_rounded = torch.round(x_scaled_clamped)
@@ -174,11 +180,20 @@ class LSQQuantizerFunction(torch.autograd.Function):
             if grad_step_size.shape != step_size.shape:
                 grad_step_size = grad_step_size.view(step_size.shape)
 
-        # Gradient scaling per LSQ to stabilize step_size learning
-        # g ≈ 1 / sqrt(N * q_max) for a general case (heuristic)
+        # Improved gradient scaling per LSQ to stabilize step_size learning
         N = x.numel()
         denom = max(float(q_max), 1.0)
-        grad_scale = 1.0 / math.sqrt(N * denom)
+        
+        # Adaptive gradient scaling based on tensor size
+        if N > 10000:  # Large tensors need more conservative scaling
+            base_scale = 1.0 / math.sqrt(N * denom)
+            grad_scale = base_scale * 0.1  # Additional conservative factor
+        else:
+            grad_scale = 1.0 / math.sqrt(N * denom)
+        
+        # Clamp gradient scale to prevent extreme values
+        grad_scale = max(1e-6, min(grad_scale, 1.0))
+        
         if isinstance(grad_step_size, torch.Tensor):
             grad_step_size = grad_step_size * grad_scale
         
@@ -278,7 +293,11 @@ class LSQQuantizer(nn.Module):
         else:
             q_max = float(2 ** self.num_bits - 1)
 
-        eps = torch.finfo(tensor.dtype).eps if tensor.is_floating_point() else 1e-8
+        # Improved eps calculation for better numerical stability
+        if tensor.is_floating_point():
+            eps = torch.finfo(tensor.dtype).eps * 100  # More conservative eps
+        else:
+            eps = 1e-6
 
         if self.per_channel:
             # Ensure step_size parameter exists with correct shape
@@ -288,13 +307,14 @@ class LSQQuantizer(nn.Module):
             reduce_dims = [d for d in range(tensor.ndim) if d != self.channel_axis]
             mean_abs = tensor.abs().mean(dim=reduce_dims, keepdim=True)
             scale = 2.0 * mean_abs / math.sqrt(max(q_max, 1.0))
-            # Clamp to avoid zeros/NaNs
-            scale = torch.clamp(scale, min=eps)
+            # Improved clamping with upper bound to prevent extreme step sizes
+            scale = torch.clamp(scale, min=eps, max=1.0)
             self.step_size.copy_(scale)
         else:
             mean_abs = tensor.abs().mean()
             scale = 2.0 * mean_abs / math.sqrt(max(q_max, 1.0))
-            scale = float(max(scale.item(), eps))
+            # Improved clamping with upper bound
+            scale = float(max(min(scale.item(), 1.0), eps))
             self.step_size.copy_(torch.tensor(scale, device=self.step_size.device, dtype=self.step_size.dtype))
     
     def get_quantization_error(self, x: torch.Tensor) -> torch.Tensor:
@@ -342,6 +362,33 @@ class LSQQuantizer(nn.Module):
             effective_bits = 0.0
         
         return min(effective_bits, self.num_bits)
+    
+    def check_numerical_stability(self, x: torch.Tensor) -> bool:
+        """Check numerical stability of the quantizer.
+        
+        Args:
+            x: Input tensor to check
+            
+        Returns:
+            True if numerically stable, False otherwise
+        """
+        if self.step_size is None:
+            return True
+            
+        # Check for NaN or Inf in step_size
+        if torch.any(torch.isnan(self.step_size)) or torch.any(torch.isinf(self.step_size)):
+            return False
+            
+        # Check for extremely small step_size
+        min_step_size = torch.finfo(x.dtype).eps * 10
+        if torch.any(self.step_size < min_step_size):
+            return False
+            
+        # Check for extremely large step_size
+        if torch.any(self.step_size > 1.0):
+            return False
+            
+        return True
     
     def extra_repr(self) -> str:
         """String representation for debugging."""

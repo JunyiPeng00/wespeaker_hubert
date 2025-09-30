@@ -274,11 +274,11 @@ def train(config='conf/config.yaml', **kwargs):
         loaded_keys = []
         
         for key in model_state_dict.keys():
-            if key == 'projection.weight':  # 使用 'in' 支持更灵活的键名匹配
+            if key == 'projection.weight':  # Use 'in' to support more flexible key matching
                 if key in all_state_dict:
-                    # 检查维度是否匹配
+                    # Check if dimensions match
                     if model_state_dict[key].shape == all_state_dict[key].shape:
-                        # 直接修改参数tensor的数据
+                        # Directly modify parameter tensor data
                         model_state_dict[key].data.copy_(all_state_dict[key])
                         loaded_keys.append(key)
                         logger.info('Load projection weight: {} (shape: {})'.format(
