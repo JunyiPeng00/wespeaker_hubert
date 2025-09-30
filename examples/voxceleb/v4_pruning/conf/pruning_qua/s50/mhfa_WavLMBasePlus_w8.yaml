@@ -103,7 +103,7 @@ min_sparsity: 0.0  # Initial sparsity level
 
 # FIXED: Quantization settings for 4-bit
 use_quantization: True
-quantization_config: '4bit_symmetric'  # 16 levels: {-8, -7, ..., 6, 7}
+quantization_config: '8bit_symmetric'  # 16 levels: {-8, -7, ..., 6, 7}
 quantize_weights: True
 quantize_bias: False  # Keep bias unquantized for stability
 quantize_activations: False  # Keep activations unquantized

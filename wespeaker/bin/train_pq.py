@@ -35,7 +35,7 @@ from wespeaker.utils.executor import run_epoch
 from wespeaker.utils.file_utils import read_table
 from wespeaker.utils.utils import get_logger, parse_config_or_kwargs, set_seed, \
     spk2id
-from wespeaker.utils.prune_utils import make_pruning_param_groups, StochasticWeightAveraging
+from wespeaker.utils.prune_utils import make_pruning_param_groups
 
 
 def train(config='conf/config.yaml', **kwargs):
@@ -60,9 +60,6 @@ def train(config='conf/config.yaml', **kwargs):
             'use_plateau_lr_decay': False,
             'lr_decay_factor': 0.1,
             'min_lr_ratio': 0.01,
-            'use_swa': False,
-            'swa_start_ratio': 0.9,
-            'swa_update_freq': 10,
             'min_temperature': 0.1,
             'temperature_decay': 0.95,
             'temperature_decay_freq': 100,
@@ -320,6 +317,7 @@ def train(config='conf/config.yaml', **kwargs):
     model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
     ddp_model = torch.nn.parallel.DistributedDataParallel(model, find_unused_parameters=True)
+    ddp_model._set_static_graph()
     # NOTE:
     # Static graph optimization is incompatible with training regimes where
     # the autograd graph changes over time (e.g., LSQ step_size unfreezing

@@ -183,11 +183,6 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
             for param_group in optimizer.param_groups:
                 param_group['lr'] = new_lr
 
-        # Update SWA if enabled
-        if swa is not None:
-            cur_iter = (epoch - 1) * epoch_iter + i
-            swa.update(cur_iter)
-
         # log
         if (i + 1) % configs['log_batch_interval'] == 0:
             row = [epoch, i + 1, scheduler.get_lr(), margin_scheduler.get_margin(),
