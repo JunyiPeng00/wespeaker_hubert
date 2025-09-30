@@ -328,12 +328,12 @@ def train(config='conf/config.yaml', **kwargs):
     #
     # Therefore, only opt-in when explicitly requested AND when neither
     # quantization-with-unfreeze nor pruning is used.
-    use_pruning_flag = configs.get('use_pruning_loss', False)
-    use_quant_flag = configs.get('use_quantization', False)
-    freeze_steps = int(configs.get('freeze_lsq_steps', 0)) if use_quant_flag else 0
-    allow_static_graph = bool(configs.get('ddp_static_graph', False)) and (not use_pruning_flag) and (not use_quant_flag or freeze_steps == 0)
-    if allow_static_graph:
-        ddp_model._set_static_graph()
+    # use_pruning_flag = configs.get('use_pruning_loss', False)
+    # use_quant_flag = configs.get('use_quantization', False)
+    # freeze_steps = int(configs.get('freeze_lsq_steps', 0)) if use_quant_flag else 0
+    # allow_static_graph = bool(configs.get('ddp_static_graph', False)) and (not use_pruning_flag) and (not use_quant_flag or freeze_steps == 0)
+    # if allow_static_graph:
+    #     ddp_model._set_static_graph()
     device = torch.device("cuda")
 
     criterion = getattr(torch.nn, configs['loss'])(**configs['loss_args'])
@@ -445,20 +445,6 @@ def train(config='conf/config.yaml', **kwargs):
             except Exception:
                 pass
 
-    # Initialize SWA if enabled
-    swa = None
-    if configs.get('use_swa', False):
-        total_iters = configs['num_epochs'] * epoch_iter
-        swa_start_iter = int(total_iters * configs.get('swa_start_ratio', 0.9))
-        swa_update_freq = configs.get('swa_update_freq', 10)
-        swa = StochasticWeightAveraging(
-            model=ddp_model,
-            start_iter=swa_start_iter,
-            update_freq=swa_update_freq
-        )
-        if rank == 0:
-            logger.info(f"SWA enabled: start_iter={swa_start_iter}, update_freq={swa_update_freq}")
-
     # save config.yaml
     if rank == 0:  
         cfg_to_save = {k: v for k, v in configs.items() if k != "lambda_pair" and k != "lsq_controller"}
@@ -494,8 +480,7 @@ def train(config='conf/config.yaml', **kwargs):
                   logger,
                   scaler,
                   device=device,
-                  configs=configs,
-                  swa=swa)
+                  configs=configs)
 
         if rank == 0:
             if epoch % configs['save_epoch_interval'] == 0 or epoch > configs[
@@ -504,12 +489,6 @@ def train(config='conf/config.yaml', **kwargs):
                     model, os.path.join(model_dir,
                                         'model_{}.pt'.format(epoch)))
 
-    # Apply SWA at the end of training
-    if swa is not None and rank == 0:
-        logger.info("Applying SWA to final model...")
-        swa.apply_swa()
-        save_checkpoint(model, os.path.join(model_dir, 'model_swa.pt'))
-        logger.info("SWA model saved as model_swa.pt")
 
     if rank == 0:
         os.symlink('model_{}.pt'.format(configs['num_epochs']),

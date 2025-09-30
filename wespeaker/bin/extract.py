@@ -53,6 +53,27 @@ def extract(config='conf/config.yaml', **kwargs):
         frontend = frontend_class_dict[frontend_type](
             **test_conf[frontend_args], sample_rate=test_conf['resample_rate'])
         model.add_module("frontend", frontend)
+        use_quantization = configs.get("use_quantization", False)
+        if use_quantization:
+            from wespeaker.frontend.wav2vec2 import apply_quantization_with_hp_integration, get_quantization_config
+
+            # Get quantization configuration
+            quant_config = get_quantization_config(configs['quantization_config'])
+            if configs.get('quantize_weights', True):
+                quant_config.quantize_weights = True
+            if configs.get('quantize_activations', False):
+                quant_config.quantize_activations = True
+            # enforce bias/per-channel from configs if provided
+            quant_config.per_channel_weights = configs.get('per_channel_weights', True)
+            quant_config.per_channel_activations = configs.get('per_channel_activations', False)
+            if 'quantize_bias' in configs:
+                quant_config.quantize_bias = configs['quantize_bias']
+            model = apply_quantization_with_hp_integration(
+                    model,
+                    config=quant_config,
+                    enable_pruning=False,
+                    pruning_config={},
+                )
     print('Loading checkpoint ...')
     load_checkpoint(model, model_path)
     print('Finished !!! Start extracting ...')

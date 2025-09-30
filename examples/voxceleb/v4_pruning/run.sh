@@ -29,11 +29,4 @@ sbatch -J "WeSpk_Qua_Vox2" \
 #   --array "6-6" \
 #   -o "${my_folder}/output_%x_%j_%a.txt" \
 #   -e "${my_folder}/error_%x_%j_%a.txt" \
-#     submit_vox2_pruning.sh
-
-# sbatch -J "WeSpk_Pruning_CN" \
-#   --time "24:00:00" \
-#   --array "1-1" \
-#   -o "${my_folder}/output_%x_%j_%a.txt" \
-#   -e "${my_folder}/error_%x_%j_%a.txt" \
-#     submit_cn.sh
+#     submit_vox2_pruning_swa.sh

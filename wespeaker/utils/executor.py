@@ -18,12 +18,11 @@ import tableprint as tp
 import torch
 import torchnet as tnt
 from wespeaker.dataset.dataset_utils import apply_cmvn, spec_aug
-from wespeaker.utils.prune_utils import pruning_loss, get_progressive_sparsity, get_learning_rate_with_plateau_decay, StochasticWeightAveraging
+from wespeaker.utils.prune_utils import pruning_loss, get_progressive_sparsity, get_learning_rate_with_plateau_decay
 
 
 def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
-              margin_scheduler, epoch, logger, scaler, device, configs, 
-              swa: StochasticWeightAveraging | None = None):
+              margin_scheduler, epoch, logger, scaler, device, configs):
     model.train()
     # Accept either a single optimizer or a tuple (optimizer, optimizer_reg)
     if isinstance(optimizer, tuple):

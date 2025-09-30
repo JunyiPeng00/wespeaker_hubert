@@ -37,7 +37,7 @@ exp
 data
 raw_wav
 convert
-v4_pruning/log
+log
 tensorboard
 **/*build*
 
