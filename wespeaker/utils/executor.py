@@ -155,6 +155,9 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
 
         if lsq_controller is not None:
             try:
+                # Zero out LSQ gradients if still in frozen phase (for static graph compatibility)
+                lsq_controller.zero_lsq_gradients_if_frozen()
+                # Apply gradient clipping
                 lsq_controller.clip_gradients()
             except Exception:
                 pass

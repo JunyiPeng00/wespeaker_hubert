@@ -250,9 +250,10 @@ class TwoPhaseLSQController:
         self.freeze_steps = int(max(0, freeze_steps))
         self.clip_norm = float(max(0.0, clip_norm))
         self._unfrozen: bool = self.freeze_steps == 0
-
-        if not self._unfrozen:
-            freeze_quantization_parameters(self.model)
+        
+        # Keep LSQ parameters always with requires_grad=True for static graph compatibility
+        # We will manually zero out gradients during the frozen phase instead
+        # This ensures the computation graph structure remains constant
 
     def maybe_unfreeze(self, global_step: int) -> None:
         """Unfreeze LSQ step sizes when reaching the boundary ``freeze_steps``.
@@ -261,9 +262,26 @@ class TwoPhaseLSQController:
             global_step: Current global optimization step (starting from 0 or 1, both ok).
         """
         if not self._unfrozen and global_step >= self.freeze_steps:
-            # Unfreeze LSQ parameters to allow normal gradient updates
-            unfreeze_quantization_parameters(self.model)
+            # Mark as unfrozen - no need to change requires_grad
+            # Gradients will now be applied normally
             self._unfrozen = True
+
+    def zero_lsq_gradients_if_frozen(self) -> None:
+        """Zero out LSQ gradients during frozen phase for static graph compatibility.
+        
+        This should be called after backward() but before optimizer.step().
+        """
+        if not self._unfrozen:
+            for module in self.model.modules():
+                if hasattr(module, 'weight_quantizer') and module.weight_quantizer is not None:
+                    if hasattr(module.weight_quantizer, 'step_size') and module.weight_quantizer.step_size is not None:
+                        if module.weight_quantizer.step_size.grad is not None:
+                            module.weight_quantizer.step_size.grad.zero_()
+                
+                if hasattr(module, 'activation_quantizer') and module.activation_quantizer is not None:
+                    if hasattr(module.activation_quantizer, 'step_size') and module.activation_quantizer.step_size is not None:
+                        if module.activation_quantizer.step_size.grad is not None:
+                            module.activation_quantizer.step_size.grad.zero_()
 
     def clip_gradients(self) -> None:
         """Apply global norm gradient clipping if ``clip_norm > 0``."""
@@ -574,58 +592,19 @@ def create_quantization_aware_training_hooks(
 
 
 def freeze_quantization_parameters(model: nn.Module) -> None:
-    """Freeze quantization parameters (step sizes) to prevent further training.
+    """Deprecated: For static graph compatibility, use TwoPhaseLSQController.zero_lsq_gradients_if_frozen() instead.
     
-    This function sets requires_grad=False and zeros out gradients to ensure
-    static graph compatibility. Parameters remain trainable but won't update
-    during the frozen phase.
-    
-    Args:
-        model: Model with quantization parameters to freeze
+    This function is kept for backward compatibility but should not be used with static graph optimization.
     """
-    for module in model.modules():
-        if hasattr(module, 'weight_quantizer') and module.weight_quantizer is not None:
-            if hasattr(module.weight_quantizer, 'step_size') and module.weight_quantizer.step_size is not None:
-                step_size = module.weight_quantizer.step_size
-                step_size.requires_grad = False
-                # Zero out gradients to ensure static graph compatibility
-                if step_size.grad is not None:
-                    step_size.grad.zero_()
-        
-        if hasattr(module, 'activation_quantizer') and module.activation_quantizer is not None:
-            if hasattr(module.activation_quantizer, 'step_size') and module.activation_quantizer.step_size is not None:
-                step_size = module.activation_quantizer.step_size
-                step_size.requires_grad = False
-                # Zero out gradients to ensure static graph compatibility
-                if step_size.grad is not None:
-                    step_size.grad.zero_()
+    pass
 
 
 def unfreeze_quantization_parameters(model: nn.Module) -> None:
-    """Unfreeze quantization parameters to allow training.
+    """Deprecated: For static graph compatibility, use TwoPhaseLSQController instead.
     
-    This function re-enables gradient computation for step_size parameters,
-    allowing them to be updated normally during training.
-    
-    Args:
-        model: Model with quantization parameters to unfreeze
+    This function is kept for backward compatibility but should not be used with static graph optimization.
     """
-    for module in model.modules():
-        if hasattr(module, 'weight_quantizer') and module.weight_quantizer is not None:
-            if hasattr(module.weight_quantizer, 'step_size') and module.weight_quantizer.step_size is not None:
-                step_size = module.weight_quantizer.step_size
-                step_size.requires_grad = True
-                # Ensure gradients can be computed normally
-                if step_size.grad is not None:
-                    step_size.grad.zero_()  # Clear old gradients
-        
-        if hasattr(module, 'activation_quantizer') and module.activation_quantizer is not None:
-            if hasattr(module.activation_quantizer, 'step_size') and module.activation_quantizer.step_size is not None:
-                step_size = module.activation_quantizer.step_size
-                step_size.requires_grad = True
-                # Ensure gradients can be computed normally
-                if step_size.grad is not None:
-                    step_size.grad.zero_()  # Clear old gradients
+    pass
 
 
 def apply_quantization(
