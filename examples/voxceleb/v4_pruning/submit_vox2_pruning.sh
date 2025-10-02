@@ -35,12 +35,12 @@ singularity exec $SIFPYTORCH bash run_wavlm_pruning.sh \
     --ft_exp_dir exp/pruning/${config} \
     --stage 8 --stop_stage 8
 
-# singularity exec $SIFPYTORCH bash run_wavlm_pruning.sh \
-#     --config conf/MHFA_WavLM_Base_Plus-frozen.yaml \
-#     --exp_dir exp/MHFA_WavLM_Base_Plus-frozen \
-#     --ft_config conf/training_purning_length/${config}.yaml \
-#     --ft_exp_dir exp/training_purning_length/${config} \
-#     --stage 8 --stop_stage 8
+singularity exec $SIFPYTORCH bash run_wavlm_pruning_eval.sh \
+    --config conf/baseline_vox2/mhfa_WavLMBasePlus_frozen.yaml \
+    --exp_dir exp/baseline_vox2/mhfa_WavLMBasePlus_frozen \
+    --ft_config conf/pruning/${config}.yaml \
+    --ft_exp_dir exp/pruning/${config} \
+    --stage 8 --stop_stage 8
 
 # singularity exec $SIFPYTORCH bash run_wavlm_pruning.sh \
 #     --config conf/training_purning_length/${config}.yaml \

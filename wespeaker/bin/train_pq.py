@@ -207,8 +207,11 @@ def train(config='conf/config.yaml', **kwargs):
                 }
                 if checkpoint is not None:
                     load_checkpoint(model, checkpoint)
-                    start_epoch = int(re.findall(r"(?<=model_)\d*(?=.pt)",
-                                                checkpoint)[0]) + 1
+                    if '.bin' in checkpoint:
+                        start_epoch = 1
+                    else:   
+                        start_epoch = int(re.findall(r"(?<=model_)\d*(?=.pt)",
+                                                    checkpoint)[0]) + 1
                     logger.info('Load checkpoint: {}'.format(checkpoint))
                 else:
                     start_epoch = 1
@@ -265,7 +268,7 @@ def train(config='conf/config.yaml', **kwargs):
     if checkpoint is not None and not use_quantization:
         load_checkpoint(model, checkpoint)
         start_epoch = int(re.findall(r"(?<=model_)\d*(?=.pt)",
-                                     checkpoint)[0]) + 1
+                                     checkpoint)[0]) + 1 if '.bin' not in checkpoint else 1
         logger.info('Load checkpoint: {}'.format(checkpoint))
     elif checkpoint is not None and use_quantization:
         all_state_dict = torch.load(checkpoint, map_location='cpu')
@@ -293,7 +296,7 @@ def train(config='conf/config.yaml', **kwargs):
             logger.warning('No projection.weight keys found in model or checkpoint')
 
         start_epoch = int(re.findall(r"(?<=model_)\d*(?=.pt)",
-                                     checkpoint)[0]) + 1
+                                     checkpoint)[0]) + 1 if '.bin' not in checkpoint else 1
         logger.info('Load checkpoint: {} (loaded {} projection weights)'.format(
             checkpoint, len(loaded_keys)))
     else:

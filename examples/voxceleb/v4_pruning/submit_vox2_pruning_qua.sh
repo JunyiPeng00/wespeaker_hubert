@@ -18,20 +18,12 @@ module load LUMI PyTorch/2.2.2-rocm-5.6.1-python-3.10-singularity-20240617
 
 
 configs=(
-    s50/mhfa_WavLMBasePlus_w1
-    s50/mhfa_WavLMBasePlus_w2
     s50/mhfa_WavLMBasePlus_w4
     s50/mhfa_WavLMBasePlus_w8
-    s60/mhfa_WavLMBasePlus_w1
-    s60/mhfa_WavLMBasePlus_w2
     s60/mhfa_WavLMBasePlus_w4
     s60/mhfa_WavLMBasePlus_w8
-    s70/mhfa_WavLMBasePlus_w1
-    s70/mhfa_WavLMBasePlus_w2
     s70/mhfa_WavLMBasePlus_w4
     s70/mhfa_WavLMBasePlus_w8
-    s80/mhfa_WavLMBasePlus_w1
-    s80/mhfa_WavLMBasePlus_w2
     s80/mhfa_WavLMBasePlus_w4
     s80/mhfa_WavLMBasePlus_w8
     )

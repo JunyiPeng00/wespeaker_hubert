@@ -71,7 +71,7 @@ if [ ${stage} -le 3 ] && [ ${stop_stage} -ge 3 ]; then
   echo "$0: num_nodes is $num_nodes, proc_per_node is $num_gpus"
   # Due to LUMI requirements, here we use torch.distributed.launch instead of torch.run
   python -m torch.distributed.launch --standalone --nnodes=1 --nproc_per_node=$num_gpus \
-    wespeaker/bin/train.py --config $config \
+    wespeaker/bin/train_pq.py --config $config \
       --exp_dir ${exp_dir} \
       --gpus $gpus \
       --num_avg ${num_avg} \
@@ -85,48 +85,29 @@ if [ ${stage} -le 3 ] && [ ${stop_stage} -ge 3 ]; then
 fi
 
 if [ ${stage} -le 4 ] && [ ${stop_stage} -ge 4 ]; then
-  # . ./lumi2.sh || exit 1
+  . ./lumi.sh || exit 1
   echo "Do model average ..."
   avg_model=$exp_dir/models/avg_model.pt
-  # python wespeaker/bin/average_model.py \
-  #   --dst_model $avg_model \
-  #   --src_path $exp_dir/models \
-  #   --num ${num_avg}
+  python wespeaker/bin/average_model.py \
+    --dst_model $avg_model \
+    --src_path $exp_dir/models \
+    --num ${num_avg}
 
   model_path=$avg_model
+  pru_model_path=$model_path
+  pru_config=${exp_dir}/config.yaml
 
-  echo "Do model pruning ..."
-  python wespeaker/bin/prune_model.py \
-    --model_path $avg_model \
-    --config ${exp_dir}/config.yaml \
-    --out_dir ${exp_dir}/pruned_model
-
-  pru_model_path=${exp_dir}/pruned_model/whole_pytorch_model.bin
-  
-  exp_config=${exp_dir}/config.yaml
-  pru_config="${exp_config%.yaml}_pruned.yaml"
-  ori_config="${exp_config%.yaml}_ori.yaml"
-  
-  cp -f "$exp_config" "$ori_config"
-
-  sed -E \
-    -e 's|^( *pruning_units:).*|\1 ""|' \
-    -e "s|^( *path_or_url:).*|\1 ${exp_dir}/pruned_model/pytorch_model.bin|" \
-    "$ori_config" > "$pru_config"
-
-
-
-  # echo "Extract embeddings ..."
-  # local/extract_vox_test.sh \
-  #   --exp_dir $exp_dir --model_path $pru_model_path \
-  #   --nj 8 --gpus $gpus --data_type $data_type --data ${data} \
-  #   --data_train ${train_data}  \
-  #   --data_test ${test_data}
+  echo "Extract embeddings ..."
+  local/extract_vox_test.sh \
+    --exp_dir $exp_dir --model_path $pru_model_path --config_path $pru_config \
+    --nj 8 --gpus $gpus --data_type $data_type --data ${data} \
+    --data_train ${train_data}  \
+    --data_test ${test_data}
     
-  # local/extract_vox_train.sh \
-  #   --exp_dir $exp_dir --model_path $pru_model_path \
-  #   --nj 16 --gpus $gpus --data_type $data_type --data ${data} \
-  #   --data_train ${train_data}  
+  local/extract_vox_train.sh \
+    --exp_dir $exp_dir --model_path $pru_model_path --config_path $pru_config \
+    --nj 16 --gpus $gpus --data_type $data_type --data ${data} \
+    --data_train ${train_data}  
     
 fi
 
@@ -166,10 +147,9 @@ fi
 
 if [ ${stage} -le 8 ] && [ ${stop_stage} -ge 8 ]; then
   echo "Full fine-tuning ..."
-  # ft_exp_dir=${exp_dir}-FT
   mkdir -p ${ft_exp_dir}/models
-  cp ${exp_dir}/models/avg_model.pt ${ft_exp_dir}/models/model_0.pt
-  bash ./run_wavlm_pruning_eval.sh --stage 4 --stop_stage 4 \
+  cp ${exp_dir}/pruned_model/whole_pytorch_model.bin ${ft_exp_dir}/models/model_0.bin
+  bash ./run_wavlm_ori.sh --stage 3 --stop_stage 7 \
       --data ${data} \
       --data_type ${data_type} \
       --config ${ft_config} \
@@ -178,7 +158,7 @@ if [ ${stage} -le 8 ] && [ ${stop_stage} -ge 8 ]; then
       --test_data ${test_data} \
       --gpus $gpus \
       --num_avg 1 \
-      --checkpoint ${ft_exp_dir}/models/model_0.pt \
+      --checkpoint ${ft_exp_dir}/models/model_0.bin \
       --trials "$trials" \
       --score_norm_method ${score_norm_method} \
       --top_n ${top_n}

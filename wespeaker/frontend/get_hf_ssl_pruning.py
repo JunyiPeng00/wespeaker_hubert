@@ -249,7 +249,7 @@ def main():
     # This example config demonstrates support for various SSL models.
     # The conversion logic will handle downloading and converting the model.
     upstream_config = {
-        'name': 'wavlm_base',  # Can be: hubert_base, wav2vec2_base, wavlm_base, etc.
+        'name': 'wavlm_base_plus',  # Can be: hubert_base, wav2vec2_base, wavlm_base, etc.
         'path_or_url': './hf_models/',  # Directory for model cache
         'pruning_units': '',  # No pruning in this example
     }

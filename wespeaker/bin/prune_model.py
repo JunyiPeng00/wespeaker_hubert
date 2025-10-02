@@ -18,6 +18,7 @@ from wespeaker.models.speaker_model import get_speaker_model
 from wespeaker.utils.checkpoint import load_checkpoint
 from wespeaker.utils.utils import parse_config_or_kwargs
 from wespeaker.frontend.wav2vec2.model import wav2vec2_model
+from wespeaker.models.projections import get_projection
 
 
 def extract(config='conf/config.yaml', **kwargs):
@@ -43,7 +44,10 @@ def extract(config='conf/config.yaml', **kwargs):
         model = get_speaker_model(configs['model'])(**configs['model_args'])
         model.add_module("frontend", frontend)
     
-    
+    # projection layer
+    projection = get_projection(configs['projection_args'])
+    model.add_module("projection", projection)
+
     print('Load checkpoint ...')
     load_checkpoint(model, model_path)
 

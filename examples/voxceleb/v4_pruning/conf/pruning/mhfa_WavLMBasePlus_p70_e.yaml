@@ -113,8 +113,3 @@ min_lr_ratio: 0.01          # 最小学习率为初始学习率的 1%
 min_temperature: 0.1           # 最小温度
 temperature_decay: 0.95        # 温度衰减因子
 temperature_decay_freq: 100    # 每100步衰减一次温度
-
-# SWA 配置
-use_swa: True              # 启用随机权重平均
-swa_start_ratio: 0.9       # 90% 训练步后开始 SWA
-swa_update_freq: 10        # 每10步更新一次 SWA
