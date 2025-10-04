@@ -127,6 +127,13 @@ def extract(config='conf/config.yaml', **kwargs):
     # ---------- Verify & param count ----------
     ckpt = torch.load(pruned_out_path, map_location="cpu")
     model_verify = wav2vec2_model(**ckpt['config'])
+    if configs.get("use_quantization", False):
+        model_verify = apply_quantization_with_hp_integration(
+            model_verify,
+            config=quant_config,
+            enable_pruning=False,
+            pruning_config={},
+        )
 
     print(model_verify.load_state_dict(ckpt['state_dict'], strict=False))
     cur_num_params = sum(

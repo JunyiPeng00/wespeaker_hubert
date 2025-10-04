@@ -28,6 +28,15 @@ def prune_linear_layer(layer, index: torch.LongTensor, dim: str) -> None:
         actual_layer = layer.linear
         layer.in_features = len(index) if dim == "input" else layer.in_features
         layer.out_features = len(index) if dim == "output" else layer.out_features
+        
+        # Update quantizer step_size if pruning output features
+        if dim == "output" and hasattr(layer, 'weight_quantizer') and layer.weight_quantizer is not None:
+            if hasattr(layer.weight_quantizer, 'step_size') and layer.weight_quantizer.step_size is not None:
+                if layer.weight_quantizer.per_channel and layer.weight_quantizer.channel_axis == 0:
+                    # Per-channel quantization: prune step_size along channel axis
+                    layer.weight_quantizer.step_size = nn.Parameter(
+                        layer.weight_quantizer.step_size.index_select(0, index).clone().detach()
+                    )
     else:
         # This is a regular nn.Linear layer
         actual_layer = layer
@@ -67,6 +76,15 @@ def prune_conv1d_layer(layer, index: torch.LongTensor, dim: str) -> None:
         actual_layer = layer.conv1d
         layer.in_channels = len(index) if dim == "input" else layer.in_channels
         layer.out_channels = len(index) if dim == "output" else layer.out_channels
+        
+        # Update quantizer step_size if pruning output channels
+        if dim == "output" and hasattr(layer, 'weight_quantizer') and layer.weight_quantizer is not None:
+            if hasattr(layer.weight_quantizer, 'step_size') and layer.weight_quantizer.step_size is not None:
+                if layer.weight_quantizer.per_channel and layer.weight_quantizer.channel_axis == 0:
+                    # Per-channel quantization: prune step_size along channel axis
+                    layer.weight_quantizer.step_size = nn.Parameter(
+                        layer.weight_quantizer.step_size.index_select(0, index).clone().detach()
+                    )
     else:
         # This is a regular nn.Conv1d layer
         actual_layer = layer
@@ -90,7 +108,7 @@ def prune_conv1d_layer(layer, index: torch.LongTensor, dim: str) -> None:
 
 
 def prune_layer_norm(
-    layernorm: Union[nn.LayerNorm, nn.GroupNorm], 
+    layernorm, 
     index: torch.LongTensor
 ) -> None:
     """Prune a layer normalization or group normalization layer in place.
@@ -99,13 +117,27 @@ def prune_layer_norm(
         layernorm: The normalization layer to prune.
         index: Indices of features to keep.
     """
+    # Handle QuantizedLayerNorm layers
+    if hasattr(layernorm, 'layer_norm'):
+        # This is a QuantizedLayerNorm layer
+        actual_layernorm = layernorm.layer_norm
+        layernorm.normalized_shape = (len(index),)
+    # Handle QuantizedGroupNorm layers
+    elif hasattr(layernorm, 'group_norm'):
+        # This is a QuantizedGroupNorm layer
+        actual_layernorm = layernorm.group_norm
+        layernorm.num_channels = len(index)
+    else:
+        # This is a regular normalization layer
+        actual_layernorm = layernorm
+    
     # Prune weight and bias parameters
-    layernorm.weight = nn.Parameter(layernorm.weight.index_select(0, index).clone().detach())
-    layernorm.bias = nn.Parameter(layernorm.bias.index_select(0, index).clone().detach())
+    actual_layernorm.weight = nn.Parameter(actual_layernorm.weight.index_select(0, index).clone().detach())
+    actual_layernorm.bias = nn.Parameter(actual_layernorm.bias.index_select(0, index).clone().detach())
     
     # Update layer-specific attributes
-    if isinstance(layernorm, nn.LayerNorm):
-        layernorm.normalized_shape = (len(index),)
-    elif isinstance(layernorm, nn.GroupNorm):
-        layernorm.num_groups = len(index)
-        layernorm.num_channels = len(index)
+    if isinstance(actual_layernorm, nn.LayerNorm):
+        actual_layernorm.normalized_shape = (len(index),)
+    elif isinstance(actual_layernorm, nn.GroupNorm):
+        actual_layernorm.num_groups = len(index)
+        actual_layernorm.num_channels = len(index)

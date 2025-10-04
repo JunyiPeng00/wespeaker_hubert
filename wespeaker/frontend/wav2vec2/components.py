@@ -231,7 +231,13 @@ class FeatureExtractor(Module):
                         self.dummy_weight.index_select(0, index).clone().detach(), requires_grad=False
                     )
                 else:
-                    self.conv_layers[idx+1].conv.weight.data *= mask.unsqueeze(-1)
+                    # Handle both regular Conv1d and QuantizedConv1d
+                    if hasattr(self.conv_layers[idx+1].conv, 'conv1d'):
+                        # QuantizedConv1d layer
+                        self.conv_layers[idx+1].conv.conv1d.weight.data *= mask.unsqueeze(-1)
+                    else:
+                        # Regular Conv1d layer
+                        self.conv_layers[idx+1].conv.weight.data *= mask.unsqueeze(-1)
                     prune_conv1d_layer(self.conv_layers[idx+1].conv, index, dim="input")
 
                 layer.hard_concrete = None
@@ -497,7 +503,13 @@ class SelfAttention(Module):
                 prune_linear_layer(self.v_proj, full_index, "output")
                 prune_linear_layer(self.q_proj, full_index, "output")
 
-                self.out_proj.weight.data *= full_mask
+                # Handle both regular Linear and QuantizedLinear
+                if hasattr(self.out_proj, 'linear'):
+                    # QuantizedLinear
+                    self.out_proj.linear.weight.data *= full_mask
+                else:
+                    # Regular Linear
+                    self.out_proj.weight.data *= full_mask
                 prune_linear_layer(self.out_proj, full_index, "input")
             self.hard_concrete_for_heads = None
 
@@ -718,7 +730,13 @@ class WavLMSelfAttention(SelfAttention):
                 prune_linear_layer(self.v_proj, full_index, "output")
                 prune_linear_layer(self.q_proj, full_index, "output")
 
-                self.out_proj.weight.data *= full_mask
+                # Handle both regular Linear and QuantizedLinear
+                if hasattr(self.out_proj, 'linear'):
+                    # QuantizedLinear
+                    self.out_proj.linear.weight.data *= full_mask
+                else:
+                    # Regular Linear
+                    self.out_proj.weight.data *= full_mask
                 prune_linear_layer(self.out_proj, full_index, "input")
             self.hard_concrete_for_heads = None
 
