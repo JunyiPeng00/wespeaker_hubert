@@ -205,7 +205,8 @@ def train(config='conf/config.yaml', **kwargs):
                     'temperature_decay': configs.get('temperature_decay', 0.95),
                     'temperature_decay_freq': configs.get('temperature_decay_freq', 100),
                 }
-                if checkpoint is not None:
+                if checkpoint is not None and configs['model_init'] is None:
+                    logger.info('Load checkpoint before quantization: {}'.format(checkpoint))
                     load_checkpoint(model, checkpoint)
                     if '.bin' in checkpoint:
                         start_epoch = 1

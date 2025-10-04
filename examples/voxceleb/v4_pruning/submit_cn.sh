@@ -17,41 +17,34 @@ module load LUMI PyTorch/2.2.2-rocm-5.6.1-python-3.10-singularity-20240617
 
 
 configs=(
-    MHFA_WavLM_Base_Plus-ft
-    MHFA_WavLM_Base_Plus-ft-s10-2
-    MHFA_WavLM_Base_Plus-ft-s20-2
-    MHFA_WavLM_Base_Plus-ft-s30-2
-    MHFA_WavLM_Base_Plus-ft-s40-2
-    MHFA_WavLM_Base_Plus-ft-s50-2
-    MHFA_WavLM_Base_Plus-ft-s60-2
-    MHFA_WavLM_Base_Plus-ft-s70-2
-    MHFA_WavLM_Base_Plus-ft-s80-2
-    MHFA_WavLM_Base_Plus-ft-s90-2
+    mhfa_WavLMBasePlus
+    mhfa_WavLMBasePlus_w8
+    mhfa_WavLMBasePlus_p70_e
 )
 config=${configs[$SLURM_ARRAY_TASK_ID-1]} 
 
 # singularity exec $SIFPYTORCH bash run_wavlm_ori_cn.sh \
-#     --config conf/CNCeleb_s2/${config}-frozen.yaml \
-#     --exp_dir exp/CNCeleb_s2/${config}-frozen \
-#     --ft_config conf/CNCeleb_s2/${config}-ft.yaml \
-#     --ft_exp_dir exp/CNCeleb_s2/${config}-ft \
+#     --config conf/cnceleb/baseline/${config}_frozen.yaml \
+#     --exp_dir exp/cnceleb/baseline/${config}-frozen \
+#     --ft_config conf/cnceleb/baseline/${config}_ft.yaml \
+#     --ft_exp_dir exp/cnceleb/baseline/${config}-ft \
 #     --stage 8 --stop_stage 8
 
 # singularity exec $SIFPYTORCH bash run_wavlm_ori_cn.sh \
-#     --config conf/CNCeleb/MHFA_WavLM_Base_Plus-frozen.yaml \
-#     --exp_dir exp/CNCeleb/MHFA_WavLM_Base_Plus-frozen \
-#     --ft_config conf/CNCeleb/${config}.yaml \
-#     --ft_exp_dir exp/CNCeleb/${config} \
+#     --config conf/cnceleb/baseline/mhfa_WavLMBasePlus_frozen.yaml \
+#     --exp_dir exp/cnceleb/baseline/mhfa_WavLMBasePlus-frozen \
+#     --ft_config conf/cnceleb/qua/${config}.yaml \
+#     --ft_exp_dir exp/cnceleb/qua/${config} \
 #     --stage 8 --stop_stage 8
 
-# singularity exec $SIFPYTORCH bash run_wavlm_cn_pruning.sh \
-#     --config conf/CNCeleb/MHFA_WavLM_Base_Plus-frozen.yaml \
-#     --exp_dir exp/CNCeleb/MHFA_WavLM_Base_Plus-frozen \
-#     --ft_config conf/CNCeleb/${config}.yaml \
-#     --t_exp_dir exp/CNCeleb/${config} \
-#     --stage 8 --stop_stage 8
+singularity exec $SIFPYTORCH bash run_wavlm_cn_pruning.sh \
+    --config conf/cnceleb/baseline/mhfa_WavLMBasePlus_frozen.yaml \
+    --exp_dir exp/cnceleb/baseline/mhfa_WavLMBasePlus-frozen \
+    --ft_config conf/cnceleb/pruning/${config}.yaml \
+    --ft_exp_dir exp/cnceleb/pruning/${config} \
+    --stage 8 --stop_stage 8
 
-singularity exec $SIFPYTORCH bash run_wavlm_ori_cn.sh \
-    --config conf/CNCeleb/${config}.yaml \
-    --exp_dir exp/${config} \
-    --stage 4 --stop_stage 7
+# singularity exec $SIFPYTORCH bash run_wavlm_ori_cn.sh \
+#     --config conf/CNCeleb/${config}.yaml \
+#     --exp_dir exp/${config} \
+#     --stage 4 --stop_stage 7

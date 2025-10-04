@@ -24,22 +24,30 @@ configs=(
     mhfa_WavLMBasePlus_p70_s3
     mhfa_WavLMBasePlus_p70_s4
     mhfa_WavLMBasePlus_p70_e
+    mhfa_WavLMBasePlus_p70_qua
 )
 config=${configs[$SLURM_ARRAY_TASK_ID-1]} 
 
 
-singularity exec $SIFPYTORCH bash run_wavlm_pruning.sh \
-    --config conf/baseline_vox2/mhfa_WavLMBasePlus_frozen.yaml \
-    --exp_dir exp/baseline_vox2/mhfa_WavLMBasePlus_frozen \
-    --ft_config conf/pruning/${config}.yaml \
-    --ft_exp_dir exp/pruning/${config} \
-    --stage 8 --stop_stage 8
+# singularity exec $SIFPYTORCH bash run_wavlm_pruning.sh \
+#     --config conf/baseline_vox2/mhfa_WavLMBasePlus_frozen.yaml \
+#     --exp_dir exp/baseline_vox2/mhfa_WavLMBasePlus_frozen \
+#     --ft_config conf/pruning/${config}.yaml \
+#     --ft_exp_dir exp/pruning/${config} \
+#     --stage 8 --stop_stage 8
 
-singularity exec $SIFPYTORCH bash run_wavlm_pruning_eval.sh \
-    --config conf/baseline_vox2/mhfa_WavLMBasePlus_frozen.yaml \
-    --exp_dir exp/baseline_vox2/mhfa_WavLMBasePlus_frozen \
-    --ft_config conf/pruning/${config}.yaml \
-    --ft_exp_dir exp/pruning/${config} \
+# singularity exec $SIFPYTORCH bash run_wavlm_pruning_eval.sh \
+#     --config conf/baseline_vox2/mhfa_WavLMBasePlus_frozen.yaml \
+#     --exp_dir exp/baseline_vox2/mhfa_WavLMBasePlus_frozen \
+#     --ft_config conf/pruning/${config}.yaml \
+#     --ft_exp_dir exp/pruning/${config} \
+#     --stage 8 --stop_stage 8
+
+singularity exec $SIFPYTORCH bash run_wavlm_pruning.sh \
+    --config conf/qua/mhfa_WavLMBasePlus_w8.yaml \
+    --exp_dir exp/qua/mhfa_WavLMBasePlus_w8 \
+    --ft_config conf/qua2pruning/${config}.yaml \
+    --ft_exp_dir exp/qua2pruning/${config} \
     --stage 8 --stop_stage 8
 
 # singularity exec $SIFPYTORCH bash run_wavlm_pruning.sh \

@@ -15,7 +15,7 @@ dataloader_args:
   batch_size: 128 
   num_workers: 8
   pin_memory: False
-  prefetch_factor: 6
+  prefetch_factor: 8
   drop_last: True
 
 
@@ -38,9 +38,11 @@ dataset_args:
   huggingface_args:
     upstream_args:
       name: "wavlm_base_plus"
+      # path_or_url: "/scratch/project_465002053/junyi/sv/ICASSP26_Pruning/wespeaker_hubert/examples/voxceleb/v4_ssl_pruning/convert/wavlm-base.hf.pth"
       path_or_url: "/scratch/project_465002053/junyi/sv/wespeaker_dev/wespeaker_hubert/examples/voxceleb/v4_pruning/convert/wavlm_base_plus.hf.pth"
+      # path_or_url: "./convert/"
       pruning_units: ""
-    frozen: False
+    frozen: True
     frame_shift: 20
     frame_length: 20
   cmvn: True
@@ -72,59 +74,25 @@ projection_args:
 
 margin_scheduler: MarginScheduler
 margin_update:
-  initial_margin: 0.2
+  initial_margin: 0.0
   final_margin: 0.2
-  increase_start_epoch: 1
-  fix_start_epoch: 1
+  increase_start_epoch: 3
+  fix_start_epoch: 10
   update_margin: True
   increase_type: "exp" # exp, linear
 
 loss: CrossEntropyLoss
 loss_args: {}
 
-optimizer: AdamW
+optimizer: SGD
 optimizer_args:
+  momentum: 0.9
+  nesterov: True
   weight_decay: 1.0e-7
 
 scheduler: ExponentialDecrease
 scheduler_args:
-  initial_lr: 1.0e-4 # 8.0e-3
-  final_lr: 1.0e-6 #4.4e-3 
-  warm_up_epoch: 2
+  initial_lr: 1.0e-1
+  final_lr: 5.0e-3
+  warm_up_epoch: 3
   warm_from_zero: True
-
-use_pruning_loss: True
-target_sparsity: 0.5
-initial_reg_lr: 5.0e-2
-sparsity_warmup_epochs: 8
-sparsity_schedule: "cosine_plateau"  # New: cosine + plateau schedule
-min_sparsity: 0.0
-
-# Plateau configuration
-plateau_start_ratio: 0.9  # Start plateau phase after 90% of total training steps
-
-# Learning rate decay configuration
-use_plateau_lr_decay: True  # Enable LR decay during plateau phase
-lr_decay_factor: 0.1        # Decay LR to 10% in plateau phase
-min_lr_ratio: 0.01          # Minimum LR is 1% of the initial LR
-
-# HardConcrete temperature annealing
-min_temperature: 0.1           # Minimum temperature
-temperature_decay: 0.95        # Temperature decay factor
-temperature_decay_freq: 100    # Decay temperature every 100 steps
-
-
-# FIXED: Quantization settings for 4-bit
-use_quantization: True
-quantization_config: '4bit_symmetric'  # 16 levels: {-8, -7, ..., 6, 7}
-quantize_weights: True
-quantize_bias: False  # Keep bias unquantized for stability
-quantize_activations: False  # Keep activations unquantized
-preserve_hp_gating: True
-
-# FIXED: LSQ training parameters
-per_channel_weights: True  # Per-channel quantization for better accuracy
-per_channel_activations: False
-freeze_lsq_steps: 30000  # No freezing - start training step_size immediately
-lsq_step_lr: 1.0e-4  # Increased from 1e-5 to match main learning rate
-grad_clip_norm: 1.0

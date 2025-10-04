@@ -71,7 +71,7 @@ if [ ${stage} -le 3 ] && [ ${stop_stage} -ge 3 ]; then
   echo "$0: num_nodes is $num_nodes, proc_per_node is $num_gpus"
   # Due to LUMI requirements, here we use torch.distributed.launch instead of torch.run
   python -m torch.distributed.launch --standalone --nnodes=1 --nproc_per_node=$num_gpus \
-    wespeaker/bin/train.py --config $config \
+    wespeaker/bin/train_pq.py --config $config \
       --exp_dir ${exp_dir} \
       --gpus $gpus \
       --num_avg ${num_avg} \
@@ -85,7 +85,7 @@ if [ ${stage} -le 3 ] && [ ${stop_stage} -ge 3 ]; then
 fi
 
 if [ ${stage} -le 4 ] && [ ${stop_stage} -ge 4 ]; then
-  . ./lumi2.sh || exit 1
+  . ./lumi.sh || exit 1
   echo "Do model average ..."
   avg_model=$exp_dir/models/avg_model.pt
   python wespeaker/bin/average_model.py \
@@ -150,7 +150,7 @@ if [ ${stage} -le 8 ] && [ ${stop_stage} -ge 8 ]; then
   # ft_exp_dir=${exp_dir}-FT
   mkdir -p ${ft_exp_dir}/models
   cp ${exp_dir}/models/avg_model.pt ${ft_exp_dir}/models/model_0.pt
-  bash ./run_wavlm_ori_cn.sh --stage 3 --stop_stage 7 \
+  bash ./run_wavlm_ori_cn.sh --stage 4 --stop_stage 7 \
       --data ${data} \
       --data_type ${data_type} \
       --config ${ft_config} \

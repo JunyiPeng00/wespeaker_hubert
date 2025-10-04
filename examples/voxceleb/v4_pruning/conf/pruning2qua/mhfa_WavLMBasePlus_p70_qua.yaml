@@ -93,12 +93,12 @@ scheduler_args:
   warm_up_epoch: 2
   warm_from_zero: True
 
-# ===== 增强剪枝配置 =====
+# ===== Enhanced pruning configuration =====
 use_pruning_loss: False
 target_sparsity: 0.7
 initial_reg_lr: 5.0e-2
 sparsity_warmup_epochs: 8
-sparsity_schedule: "cosine_plateau"  # 新增：cosine + plateau 调度
+sparsity_schedule: "cosine_plateau"  # New: cosine + plateau schedule
 min_sparsity: 0.0
 
 # FIXED: Quantization settings for 4-bit

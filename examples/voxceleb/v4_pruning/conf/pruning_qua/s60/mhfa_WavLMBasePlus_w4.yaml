@@ -93,12 +93,25 @@ scheduler_args:
   warm_up_epoch: 2
   warm_from_zero: True
 
-use_pruning_loss: True # whether use pruning loss, if True, the pruning loss will be added to the training loss
+use_pruning_loss: True
 target_sparsity: 0.6
-initial_reg_lr: 5.0e-3
+initial_reg_lr: 5.0e-2
 sparsity_warmup_epochs: 8
-sparsity_schedule: "cosine"  # Options: linear, cosine, exponential, sigmoid
-min_sparsity: 0.0  # Initial sparsity level
+sparsity_schedule: "cosine_plateau"  # New: cosine + plateau schedule
+min_sparsity: 0.0
+
+# Plateau configuration
+plateau_start_ratio: 0.9  # Start plateau phase after 90% of total training steps
+
+# Learning rate decay configuration
+use_plateau_lr_decay: True  # Enable LR decay during plateau phase
+lr_decay_factor: 0.1        # Decay LR to 10% in plateau phase
+min_lr_ratio: 0.01          # Minimum LR is 1% of the initial LR
+
+# HardConcrete temperature annealing
+min_temperature: 0.1           # Minimum temperature
+temperature_decay: 0.95        # Temperature decay factor
+temperature_decay_freq: 100    # Decay temperature every 100 steps
 
 
 # FIXED: Quantization settings for 4-bit
