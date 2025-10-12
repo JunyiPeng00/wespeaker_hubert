@@ -28,8 +28,8 @@ def download_models():
     # Models to download
     models_to_download = [
         'wavlm_base',
-        'hubert_base',
-        'wavlm_base_plus',
+        # 'hubert_base',
+        # 'wavlm_base_plus',
         'wavlm_large',
     ]
     
@@ -96,7 +96,8 @@ def verify_models():
     convert_dir = "convert"
     required_models = [
         "wavlm_base.hf.pth",
-        "hubert_base.hf.pth"
+        'wavlm_large.hf.pth',
+        # "hubert_base.hf.pth"
     ]
     
     all_valid = True

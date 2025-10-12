@@ -12,7 +12,7 @@ mkdir -p "${my_folder}"
 
 sbatch -J "WeSpk_Pruning_CN" \
   --time "24:00:00" \
-  --array "3-3" \
+  --array "4-4" \
   -o "${my_folder}/output_%x_%j_%a.txt" \
   -e "${my_folder}/error_%x_%j_%a.txt" \
     submit_cn.sh

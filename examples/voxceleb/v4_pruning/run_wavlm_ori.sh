@@ -76,9 +76,9 @@ if [ ${stage} -le 3 ] && [ ${stop_stage} -ge 3 ]; then
       --gpus $gpus \
       --num_avg ${num_avg} \
       --data_type "${data_type}" \
-      --train_data ${data}/vox2_dev/${data_type}.list \
-      --train_label ${data}/vox2_dev/utt2spk \
-      --train_lmdb ${data}/vox2_dev/lmdb \
+      --train_data ${data}/${train_data}/${data_type}.list \
+      --train_label ${data}/${train_data}/utt2spk \
+      --train_lmdb ${data}/${train_data}/lmdb \
       --reverb_data ${data}/rirs/lmdb \
       --noise_data ${data}/musan/lmdb \
       ${checkpoint:+--checkpoint $checkpoint}
@@ -107,8 +107,12 @@ if [ ${stage} -le 4 ] && [ ${stop_stage} -ge 4 ]; then
   local/extract_vox_train.sh \
     --exp_dir $exp_dir --model_path $pru_model_path --config_path $pru_config \
     --nj 16 --gpus $gpus --data_type $data_type --data ${data} \
-    --data_train ${train_data}  
-    
+    --data_train ${train_data}
+
+  # if [ ${train_data} != "vox2_dev" ]; then
+  #   ln -s ${exp_dir}/embeddings/${train_data} ${exp_dir}/embeddings/vox2_dev
+  # fi
+
 fi
 
 if [ ${stage} -le 5 ] && [ ${stop_stage} -ge 5 ]; then
@@ -116,6 +120,7 @@ if [ ${stage} -le 5 ] && [ ${stop_stage} -ge 5 ]; then
   local/score.sh \
     --stage 1 --stop-stage 2 \
     --data ${data} \
+    --train_data ${train_data} \
     --exp_dir $exp_dir \
     --trials "$trials"
 fi
@@ -125,7 +130,7 @@ if [ ${stage} -le 6 ] && [ ${stop_stage} -ge 6 ]; then
   local/score_norm.sh \
     --stage 1 --stop-stage 3 \
     --score_norm_method $score_norm_method \
-    --cohort_set vox2_dev \
+    --cohort_set ${train_data} \
     --top_n $top_n \
     --data ${data} \
     --exp_dir $exp_dir \

@@ -10,12 +10,12 @@ my_folder="${WORK_DIR}/log/${time}/"
 
 mkdir -p "${my_folder}"
 
-# sbatch -J "WeSpk_Pruning_Vox2" \
-#   --time "24:00:00" \
-#   --array "1-1" \
-#   -o "${my_folder}/output_%x_%j_%a.txt" \
-#   -e "${my_folder}/error_%x_%j_%a.txt" \
-#     submit_vox2.sh
+sbatch -J "WeSpk_ori_Vox2" \
+  --time "48:00:00" \
+  --array "12-16" \
+  -o "${my_folder}/output_%x_%j_%a.txt" \
+  -e "${my_folder}/error_%x_%j_%a.txt" \
+    submit_vox2.sh
 
 # sbatch -J "WeSpk_Qua_Vox2" \
 #   --time "24:00:00" \
@@ -31,9 +31,9 @@ mkdir -p "${my_folder}"
 #   -e "${my_folder}/error_%x_%j_%a.txt" \
 #     submit_vox2_pruning_qua.sh
 
-sbatch -J "WeSpk_PruningQua_Vox2" \
-  --time "24:00:00" \
-  --array "7-7" \
-  -o "${my_folder}/output_%x_%j_%a.txt" \
-  -e "${my_folder}/error_%x_%j_%a.txt" \
-    submit_vox2_pruning.sh
+# sbatch -J "WeSpk_PruningQua_Vox2" \
+#   --time "24:00:00" \
+#   --array "9-10" \
+#   -o "${my_folder}/output_%x_%j_%a.txt" \
+#   -e "${my_folder}/error_%x_%j_%a.txt" \
+#     submit_vox2_pruning_qua.sh

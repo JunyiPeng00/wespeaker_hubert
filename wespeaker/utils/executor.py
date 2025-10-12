@@ -19,7 +19,7 @@ import torch
 import torchnet as tnt
 from wespeaker.dataset.dataset_utils import apply_cmvn, spec_aug
 from wespeaker.utils.prune_utils import pruning_loss, get_progressive_sparsity, get_learning_rate_with_plateau_decay
-
+import torch.nn.utils as nn_utils
 
 def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
               margin_scheduler, epoch, logger, scaler, device, configs):
@@ -152,6 +152,8 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
 
         # scaler does nothing here if enable_amp=False
         scaler.scale(total_loss).backward()
+        nn_utils.clip_grad_norm_(model.parameters(), 1.0)
+
 
         if lsq_controller is not None:
             try:

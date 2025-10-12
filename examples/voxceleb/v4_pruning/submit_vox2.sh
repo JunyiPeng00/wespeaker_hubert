@@ -20,18 +20,47 @@ module load LUMI PyTorch/2.2.2-rocm-5.6.1-python-3.10-singularity-20240617
 configs=(
     mhfa_WavLMBasePlus_frozen
     mhfa_WavLMBasePlus_ft
+    mhfa_WavLMLarge_frozen
+    mhfa_WavLMLarge_frozen_v2
+    mhfa_WavLMLarge_frozen_v2-1
+    mhfa_WavLMLarge_frozen_v2-2
+    mhfa_WavLMLarge_frozen_v3
+    mhfa_WavLMLarge_frozen_v4
+    mhfa_WavLMLarge_ft
+    mhfa_WavLMLarge_ft_v2
+    mhfa_WavLMLarge_ft_v3
+    mhfa_WavLMLarge_ft_v4
+    mhfa_WavLMLarge_ft_v5
+    mhfa_WavLMLarge_ft_v6
+    mhfa_WavLMLarge_ft_v7
+    mhfa_WavLMLarge_ft_v8
+    mhfa_WavLMLarge_ft_v9
 )
 config=${configs[$SLURM_ARRAY_TASK_ID-1]} 
+
+# singularity exec $SIFPYTORCH bash run_wavlm_ori.sh \
+#     --train_data vbclean_vox2dev \
+#     --config conf/baseline_vb/${config}.yaml \
+#     --exp_dir exp/baseline_vb/${config} \
+#     --stage 5 --stop_stage 7
+
+# singularity exec $SIFPYTORCH bash run_wavlm_ori.sh \
+#     --train_data vb2 \
+#     --config conf/baseline_vb2/${config}.yaml \
+#     --exp_dir exp/baseline_vb2/${config} \
+#     --stage 3 --stop_stage 7
+
+# singularity exec $SIFPYTORCH bash run_wavlm_ori.sh \
+#     --config conf/baseline_vox2/mhfa_WavLMLarge_frozen_v2.yaml \
+#     --exp_dir exp/baseline_vox2/mhfa_WavLMLarge_frozen_v2 \
+#     --ft_config conf/baseline_vox2/${config}.yaml \
+#     --ft_exp_dir exp/baseline_vox2/${config} \
+#     --stage 8 --stop_stage 8
 
 singularity exec $SIFPYTORCH bash run_wavlm_ori.sh \
     --config conf/baseline_vox2/${config}.yaml \
     --exp_dir exp/baseline_vox2/${config} \
-    --stage 5 --stop_stage 7
-
-# singularity exec $SIFPYTORCH bash run_wavlm_ori_eval.sh \
-#     --config conf/training_purning_large/${config}.yaml \
-#     --exp_dir exp/training_purning_large/${config} \
-#     --stage 4 --stop_stage 7
+    --stage 3 --stop_stage 7
 
 # singularity exec $SIFPYTORCH bash run_wavlm_ori.sh \
 #     --config conf/baseline_vox2/mhfa_WavLMBasePlus_frozen.yaml \

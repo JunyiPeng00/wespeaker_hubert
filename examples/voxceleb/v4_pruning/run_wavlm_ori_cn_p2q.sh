@@ -9,8 +9,8 @@
 # multi-node + multi-gpus:
 #   bash run.sh --stage 3 --stop-stage 3 --HOST_NODE_ADDR "xxx.xxx.xxx.xxx:port" --num_nodes num_node
 
-stage=2
-stop_stage=2
+stage=3
+stop_stage=6
 
 HOST_NODE_ADDR="localhost:29400"
 num_nodes=1
@@ -27,15 +27,15 @@ gpus="[0,1,2,3,4,5,6,7]"
 num_avg=3
 checkpoint=
 
-trials="vox1_O_cleaned.kaldi vox1_E_cleaned.kaldi vox1_H_cleaned.kaldi"
+trials="CNC-Eval-Concat.lst"
 score_norm_method="asnorm"  # asnorm/snorm
 top_n=300
 
 # setup for large margin fine-tuning
 lm_config=conf/resnet_lm.yaml
 
-train_data=vox2_dev
-test_data=vox1
+train_data=cnceleb_train
+test_data=eval
 
 . tools/parse_options.sh || exit 1
 
@@ -46,7 +46,7 @@ fi
 
 if [ ${stage} -le 2 ] && [ ${stop_stage} -ge 2 ]; then
   echo "Covert train and test data to ${data_type}..."
-  for dset in vb2_vx2; do
+  for dset in vox2_dev vox1; do
     if [ $data_type == "shard" ]; then
       python tools/make_shard_list.py --num_utts_per_shard 1000 \
           --num_threads 16 \
@@ -60,9 +60,9 @@ if [ ${stage} -le 2 ] && [ ${stop_stage} -ge 2 ]; then
     fi
   done
   # Convert all musan data to LMDB
-  # python tools/make_lmdb.py ${data}/musan/wav.scp ${data}/musan/lmdb
+  python tools/make_lmdb.py ${data}/musan/wav.scp ${data}/musan/lmdb
   # Convert all rirs data to LMDB
-  # python tools/make_lmdb.py ${data}/rirs/wav.scp ${data}/rirs/lmdb
+  python tools/make_lmdb.py ${data}/rirs/wav.scp ${data}/rirs/lmdb
 fi
 
 if [ ${stage} -le 3 ] && [ ${stop_stage} -ge 3 ]; then
@@ -71,49 +71,49 @@ if [ ${stage} -le 3 ] && [ ${stop_stage} -ge 3 ]; then
   echo "$0: num_nodes is $num_nodes, proc_per_node is $num_gpus"
   # Due to LUMI requirements, here we use torch.distributed.launch instead of torch.run
   python -m torch.distributed.launch --standalone --nnodes=1 --nproc_per_node=$num_gpus \
-    wespeaker/bin/train.py --config $config \
+    wespeaker/bin/train_pq.py --config $config \
       --exp_dir ${exp_dir} \
       --gpus $gpus \
       --num_avg ${num_avg} \
       --data_type "${data_type}" \
-      --train_data ${data}/vox2_dev/${data_type}.list \
-      --train_label ${data}/vox2_dev/utt2spk \
-      --train_lmdb ${data}/vox2_dev/lmdb \
+      --train_data ${data}/${train_data}/${data_type}.list \
+      --train_label ${data}/${train_data}//utt2spk \
+      --train_lmdb ${data}/${train_data}//lmdb \
       --reverb_data ${data}/rirs/lmdb \
       --noise_data ${data}/musan/lmdb \
       ${checkpoint:+--checkpoint $checkpoint}
 fi
 
 if [ ${stage} -le 4 ] && [ ${stop_stage} -ge 4 ]; then
-  . ./lumi2.sh || exit 1
+  . ./lumi.sh || exit 1
   echo "Do model average ..."
   avg_model=$exp_dir/models/avg_model.pt
-  # python wespeaker/bin/average_model.py \
-  #   --dst_model $avg_model \
-  #   --src_path $exp_dir/models \
-  #   --num ${num_avg}
+  python wespeaker/bin/average_model.py \
+    --dst_model $avg_model \
+    --src_path $exp_dir/models \
+    --num ${num_avg}
 
   model_path=$avg_model
   pru_model_path=$model_path
   pru_config=${exp_dir}/config.yaml
 
   echo "Extract embeddings ..."
-  local/extract_vox_test_tmp.sh \
+  local/extract_vox_test.sh \
     --exp_dir $exp_dir --model_path $pru_model_path --config_path $pru_config \
     --nj 8 --gpus $gpus --data_type $data_type --data ${data} \
     --data_train ${train_data}  \
     --data_test ${test_data}
     
-  # local/extract_vox_train.sh \
-  #   --exp_dir $exp_dir --model_path $pru_model_path --config_path $pru_config \
-  #   --nj 16 --gpus $gpus --data_type $data_type --data ${data} \
-  #   --data_train ${train_data}  
+  local/extract_vox_train.sh \
+    --exp_dir $exp_dir --model_path $pru_model_path --config_path $pru_config \
+    --nj 16 --gpus $gpus --data_type $data_type --data ${data} \
+    --data_train ${train_data}  
     
 fi
 
 if [ ${stage} -le 5 ] && [ ${stop_stage} -ge 5 ]; then
   echo "Score ..."
-  local/score.sh \
+  local/score_cn.sh \
     --stage 1 --stop-stage 2 \
     --data ${data} \
     --exp_dir $exp_dir \
@@ -122,10 +122,10 @@ fi
 
 if [ ${stage} -le 6 ] && [ ${stop_stage} -ge 6 ]; then
   echo "Score norm ..."
-  local/score_norm.sh \
+  local/score_norm_cn.sh \
     --stage 1 --stop-stage 3 \
     --score_norm_method $score_norm_method \
-    --cohort_set vox2_dev \
+    --cohort_set ${train_data} \
     --top_n $top_n \
     --data ${data} \
     --exp_dir $exp_dir \
@@ -137,8 +137,8 @@ if [ ${stage} -le 7 ] && [ ${stop_stage} -ge 7 ]; then
   local/score_calibration.sh \
     --stage 1 --stop-stage 5 \
     --score_norm_method $score_norm_method \
-    --calibration_trial "vox2_cali.kaldi" \
-    --cohort_set vox2_dev \
+    --calibration_trial "CN_cali.kaldi" \
+    --cohort_set ${train_data} \
     --top_n $top_n \
     --data ${data} \
     --exp_dir $exp_dir \
@@ -147,9 +147,12 @@ fi
 
 if [ ${stage} -le 8 ] && [ ${stop_stage} -ge 8 ]; then
   echo "Full fine-tuning ..."
+  # ft_exp_dir=${exp_dir}-FT
   mkdir -p ${ft_exp_dir}/models
-  cp ${exp_dir}/models/avg_model.pt ${ft_exp_dir}/models/model_0.pt
-  bash ./run_wavlm_ori.sh --stage 3 --stop_stage 7 \
+  # cp ${exp_dir}/models/avg_model.pt ${ft_exp_dir}/models/model_0.pt
+  cp ${exp_dir}/pruned_model/whole_pytorch_model.bin ${ft_exp_dir}/models/model_0.bin
+
+  bash ./run_wavlm_ori_cn.sh --stage 3 --stop_stage 7 \
       --data ${data} \
       --data_type ${data_type} \
       --config ${ft_config} \
@@ -158,7 +161,7 @@ if [ ${stage} -le 8 ] && [ ${stop_stage} -ge 8 ]; then
       --test_data ${test_data} \
       --gpus $gpus \
       --num_avg 1 \
-      --checkpoint ${ft_exp_dir}/models/model_0.pt \
+      --checkpoint ${ft_exp_dir}/models/model_0.bin \
       --trials "$trials" \
       --score_norm_method ${score_norm_method} \
       --top_n ${top_n}

@@ -48,7 +48,7 @@ if [ $stage -le 2 ] && [ $stop_stage -ge 2 ]; then
       --score_norm_file $exp_dir/scores/${output_name}_${x}.score \
       --cohort_emb_scp ${exp_dir}/embeddings/${cohort_set}/spk_xvector.scp \
       --eval_emb_scp ${exp_dir}/embeddings/vox1/xvector.scp \
-      --mean_vec_path ${exp_dir}/embeddings/vox2_dev/mean_vec.npy
+      --mean_vec_path ${exp_dir}/embeddings/${cohort_set}/mean_vec.npy
   done
 fi
 

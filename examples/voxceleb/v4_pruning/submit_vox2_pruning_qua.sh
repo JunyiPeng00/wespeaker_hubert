@@ -26,6 +26,9 @@ configs=(
     s70/mhfa_WavLMBasePlus_w8
     s80/mhfa_WavLMBasePlus_w4
     s80/mhfa_WavLMBasePlus_w8
+    s50/mhfa_WavLMBasePlus_w1
+    s50/mhfa_WavLMBasePlus_w2
+    s50/mhfa_WavLMBasePlus_w8_a
     )
 config=${configs[$SLURM_ARRAY_TASK_ID-1]} 
 
@@ -38,11 +41,13 @@ singularity exec $SIFPYTORCH bash run_wavlm_pruning.sh \
     --stage 8 --stop_stage 8
 
 # singularity exec $SIFPYTORCH bash run_wavlm_pruning.sh \
-#     --config conf/MHFA_WavLM_Base_Plus-frozen.yaml \
-#     --exp_dir exp/MHFA_WavLM_Base_Plus-frozen \
-#     --ft_config conf/training_purning_length/${config}.yaml \
-#     --ft_exp_dir exp/training_purning_length/${config} \
+#     --train_data vbclean_vox2dev \
+#     --config conf/baseline_vb/mhfa_WavLMBasePlus_frozen.yaml \
+#     --exp_dir exp/baseline_vb/mhfa_WavLMBasePlus_frozen \
+#     --ft_config conf/pruning_qua/${config}.yaml \
+#     --ft_exp_dir exp/pruning_qua_vb/${config} \
 #     --stage 8 --stop_stage 8
+
 
 # singularity exec $SIFPYTORCH bash run_wavlm_pruning.sh \
 #     --config conf/training_purning_length/${config}.yaml \

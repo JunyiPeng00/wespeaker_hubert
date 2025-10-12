@@ -16,7 +16,7 @@
 
 import contextlib
 import os
-from typing import Mapping, Any, Tuple
+from typing import Mapping, Any, Tuple, Optional
 
 import torch
 import torch.nn as nn
@@ -24,7 +24,6 @@ import torch.distributed as dist
 
 from wespeaker.frontend.wav2vec2.convert_hf_ssl_models import convert_hf_ssl_model
 from wespeaker.frontend.wav2vec2.model import wav2vec2_model, wavlm_model
-
 
 def is_rank_zero() -> bool:
     """Check if current process is rank 0 in distributed training.
@@ -119,6 +118,7 @@ class HuggingfaceFrontend(nn.Module):
             for name, param in self.upstream.named_parameters():
                 if 'mask_emb' in name:
                     param.requires_grad_(False)
+            self.upstream.train()
 
     def _build_upstream(
         self, upstream_ckpt_path: str, pruning_units: str
@@ -156,10 +156,10 @@ class HuggingfaceFrontend(nn.Module):
             config['normalize_waveform'] = False
 
         # Determine which model class to use based on the model name
-        # if "wavlm" in self.upstream_name.lower():
-        #     model = wavlm_model(**config)
-        # else:
-        model = wav2vec2_model(**config)
+        if "wavlm" in self.upstream_name.lower():
+            model = wavlm_model(**config)
+        else:
+            model = wav2vec2_model(**config)
         
         result = model.load_state_dict(ckpt['state_dict'], strict=False)
         if is_rank_zero():
@@ -199,7 +199,7 @@ class HuggingfaceFrontend(nn.Module):
         raise ValueError(f'Unknown output size for model: {self.upstream_name}')
 
     def forward(
-        self, input_wav: torch.Tensor, input_lengths: torch.LongTensor
+        self, input_wav: torch.Tensor, input_lengths: Optional[torch.LongTensor] = None
     ) -> Tuple[torch.Tensor, None]:
         """Performs the forward pass to extract features.
 
@@ -250,7 +250,9 @@ def main():
     # The conversion logic will handle downloading and converting the model.
     upstream_config = {
         'name': 'wavlm_base_plus',  # Can be: hubert_base, wav2vec2_base, wavlm_base, etc.
-        'path_or_url': './hf_models/',  # Directory for model cache
+        # 'path_or_url': '/scratch/project_465002053/junyi/sv/wespeaker_dev/wespeaker_hubert/examples/voxceleb/v4_pruning/convert/wavlm_base.hf.pth',  # Directory for model cache
+        # 'path_or_url': '/scratch/project_465002053/junyi/sv/wespeaker_dev/wespeaker_hubert/examples/voxceleb/v4_pruning/exp/pruning/mhfa_WavLMBasePlus_p70_e/pruned_model/pytorch_model.bin',  # Directory for model cache
+        'path_or_url':'/scratch/project_465002053/junyi/sv/wespeaker_dev/wespeaker_hubert/examples/voxceleb/v4_pruning/exp/qua2pruning/mhfa_WavLMBasePlus_p70_qua/pruned_model/pytorch_model.bin',
         'pruning_units': '',  # No pruning in this example
     }
     
@@ -278,6 +280,17 @@ def main():
     
     output, _ = net(dummy_input, dummy_lengths)
     
+    from deepspeed.profiling.flops_profiler import get_model_profile
+    
+    flops, macs, params  = get_model_profile(
+        model=net.eval(),
+        input_shape=(1, 16000*4),  # 根据你模型的输入更改
+        print_profile=True,
+        detailed=True,                 # 打印每一层
+        module_depth=-1,               # 控制打印深度
+    )
+    print(f"flops: {flops}, macs; {macs}, Params: {params}")
+
     if is_rank_zero():
         print(f'Output shape: {output.shape}')
 

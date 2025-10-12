@@ -9,8 +9,8 @@
 # multi-node + multi-gpus:
 #   bash run.sh --stage 3 --stop-stage 3 --HOST_NODE_ADDR "xxx.xxx.xxx.xxx:port" --num_nodes num_node
 
-stage=3
-stop_stage=6
+stage=2
+stop_stage=2
 
 HOST_NODE_ADDR="localhost:29400"
 num_nodes=1
@@ -46,7 +46,7 @@ fi
 
 if [ ${stage} -le 2 ] && [ ${stop_stage} -ge 2 ]; then
   echo "Covert train and test data to ${data_type}..."
-  for dset in vox2_dev vox1; do
+  for dset in vb2; do
     if [ $data_type == "shard" ]; then
       python tools/make_shard_list.py --num_utts_per_shard 1000 \
           --num_threads 16 \

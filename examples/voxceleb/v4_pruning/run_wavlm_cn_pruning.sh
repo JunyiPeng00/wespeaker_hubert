@@ -166,7 +166,7 @@ if [ ${stage} -le 8 ] && [ ${stop_stage} -ge 8 ]; then
   # ft_exp_dir=${exp_dir}-FT
   mkdir -p ${ft_exp_dir}/models
   cp ${exp_dir}/models/avg_model.pt ${ft_exp_dir}/models/model_0.pt
-  bash ./run_wavlm_cn_pruning.sh --stage 4 --stop_stage 7 \
+  bash ./run_wavlm_cn_pruning.sh --stage 3 --stop_stage 7 \
       --data ${data} \
       --data_type ${data_type} \
       --config ${ft_config} \

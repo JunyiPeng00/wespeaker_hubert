@@ -106,6 +106,8 @@ if [ ${stage} -le 4 ] && [ ${stop_stage} -ge 4 ]; then
   find ${rawdata_dir}/voxceleb2_wav -name "*.wav" | awk -F"/" '{print $(NF-2)"/"$(NF-1)"/"$NF,$0}' | sort >${data}/vox2_dev/wav.scp
   awk '{print $1}' ${data}/vox2_dev/wav.scp | awk -F "/" '{print $0,$1}' >${data}/vox2_dev/utt2spk
   ./tools/utt2spk_to_spk2utt.pl ${data}/vox2_dev/utt2spk >${data}/vox2_dev/spk2utt
+  awk '{print $1}' ${data}/vb2/wav.scp | awk -F "/" '{print $0,$1}' >${data}/vb2/utt2spk
+  ./tools/utt2spk_to_spk2utt.pl ${data}/vb2/utt2spk >${data}/vb2/spk2utt
 
   echo "Success !!!"
 fi

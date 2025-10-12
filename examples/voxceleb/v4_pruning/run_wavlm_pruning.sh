@@ -76,16 +76,15 @@ if [ ${stage} -le 3 ] && [ ${stop_stage} -ge 3 ]; then
       --gpus $gpus \
       --num_avg ${num_avg} \
       --data_type "${data_type}" \
-      --train_data ${data}/vox2_dev/${data_type}.list \
-      --train_label ${data}/vox2_dev/utt2spk \
-      --train_lmdb ${data}/vox2_dev/lmdb \
+      --train_data ${data}/${train_data}/${data_type}.list \
+      --train_label ${data}/${train_data}/utt2spk \
+      --train_lmdb ${data}/${train_data}/lmdb \
       --reverb_data ${data}/rirs/lmdb \
       --noise_data ${data}/musan/lmdb \
       ${checkpoint:+--checkpoint $checkpoint}
 fi
 
 if [ ${stage} -le 4 ] && [ ${stop_stage} -ge 4 ]; then
-  . ./lumi.sh || exit 1
   echo "Do model average ..."
   avg_model=$exp_dir/models/avg_model.pt
   python wespeaker/bin/average_model.py \
@@ -135,6 +134,7 @@ if [ ${stage} -le 5 ] && [ ${stop_stage} -ge 5 ]; then
   local/score.sh \
     --stage 1 --stop-stage 2 \
     --data ${data} \
+    --train_data ${train_data} \
     --exp_dir $exp_dir \
     --trials "$trials"
 fi
@@ -144,7 +144,7 @@ if [ ${stage} -le 6 ] && [ ${stop_stage} -ge 6 ]; then
   local/score_norm.sh \
     --stage 1 --stop-stage 3 \
     --score_norm_method $score_norm_method \
-    --cohort_set vox2_dev \
+    --cohort_set ${train_data}  \
     --top_n $top_n \
     --data ${data} \
     --exp_dir $exp_dir \
@@ -169,7 +169,7 @@ if [ ${stage} -le 8 ] && [ ${stop_stage} -ge 8 ]; then
   # ft_exp_dir=${exp_dir}-FT
   mkdir -p ${ft_exp_dir}/models
   cp ${exp_dir}/models/avg_model.pt ${ft_exp_dir}/models/model_0.pt
-  bash ./run_wavlm_pruning.sh --stage 4 --stop_stage 7 \
+  bash ./run_wavlm_pruning.sh --stage 3 --stop_stage 6 \
       --data ${data} \
       --data_type ${data_type} \
       --config ${ft_config} \
