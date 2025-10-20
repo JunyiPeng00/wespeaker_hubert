@@ -50,10 +50,10 @@ singularity exec $SIFPYTORCH bash run_wavlm_pruning.sh \
     --ft_exp_dir exp/qua2pruning/${config} \
     --stage 8 --stop_stage 8
 
-# singularity exec $SIFPYTORCH bash run_wavlm_pruning.sh \
-#     --config conf/training_purning_length/${config}.yaml \
-#     --exp_dir exp/training_purning_length/${config} \
-#     --stage 3 --stop_stage 7
+singularity exec $SIFPYTORCH bash run_wavlm_pruning.sh \
+    --config conf/pruning/${config}.yaml \
+    --exp_dir exp/pruning/${config} \
+    --stage 3 --stop_stage 3
 
 # singularity exec $SIFPYTORCH bash run_wavlm_pruning_eval.sh \
 #     --config conf/MHFA_WavLM_Base_Plus-frozen.yaml \
