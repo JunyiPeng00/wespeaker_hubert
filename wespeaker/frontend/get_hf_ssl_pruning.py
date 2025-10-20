@@ -67,6 +67,7 @@ class HuggingfaceFrontend(nn.Module):
         frame_shift: int = 20,
         frame_length: int = 20,
         sample_rate: int = 16000,
+        hard_concrete_config: Optional[dict] = None,
     ):
         """Initializes the HuggingfaceFrontend.
 
@@ -107,6 +108,7 @@ class HuggingfaceFrontend(nn.Module):
         self.upstream, self.upstream_config = self._build_upstream(
             upstream_ckpt_path=converted_model_path,
             pruning_units=pruning_units,
+            hard_concrete_config=hard_concrete_config,
         )
 
         # 3. Freeze weights if required.
@@ -121,7 +123,7 @@ class HuggingfaceFrontend(nn.Module):
             self.upstream.train()
 
     def _build_upstream(
-        self, upstream_ckpt_path: str, pruning_units: str
+        self, upstream_ckpt_path: str, pruning_units: str, hard_concrete_config: Optional[dict] = None
     ) -> Tuple[nn.Module, Mapping[str, Any]]:
         """Builds the upstream model from a WeSpeaker format checkpoint.
 
@@ -157,9 +159,9 @@ class HuggingfaceFrontend(nn.Module):
 
         # Determine which model class to use based on the model name
         if "wavlm" in self.upstream_name.lower():
-            model = wavlm_model(**config)
+            model = wavlm_model(**config, hard_concrete_config=hard_concrete_config)
         else:
-            model = wav2vec2_model(**config)
+            model = wav2vec2_model(**config, hard_concrete_config=hard_concrete_config)
         
         result = model.load_state_dict(ckpt['state_dict'], strict=False)
         if is_rank_zero():
@@ -199,7 +201,7 @@ class HuggingfaceFrontend(nn.Module):
         raise ValueError(f'Unknown output size for model: {self.upstream_name}')
 
     def forward(
-        self, input_wav: torch.Tensor, input_lengths: Optional[torch.LongTensor] = None
+        self, input_wav: torch.Tensor, input_lengths: Optional[torch.LongTensor] = None, current_iter: Optional[int] = None
     ) -> Tuple[torch.Tensor, None]:
         """Performs the forward pass to extract features.
 
@@ -220,7 +222,7 @@ class HuggingfaceFrontend(nn.Module):
 
         with torch.no_grad() if self.frozen else contextlib.nullcontext():
             # ssl_hiddens is a tuple of tensors, one for each layer
-            ssl_hiddens, _ = self.upstream.extract_features(input_tensor)
+            ssl_hiddens, _ = self.upstream.extract_features(input_tensor, current_iter=current_iter)
 
         # Stack layer representations and reorder dimensions
         # Original: (L, B, F, D) -> Stacked: (L, B, F, D)

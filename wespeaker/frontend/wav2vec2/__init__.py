@@ -22,34 +22,7 @@ from .pruning_utils import (
     prune_layer_norm
 )
 
-# Quantization modules
-from .lsq_quantizer import (
-    LSQQuantizer,
-    LSQQuantizerFunction,
-    create_lsq_quantizer,
-    LSQ_8BIT_SYMMETRIC,
-    LSQ_8BIT_ASYMMETRIC,
-    LSQ_4BIT_SYMMETRIC,
-    LSQ_4BIT_ASYMMETRIC
-)
-from .quantized_layers import (
-    QuantizedLinear,
-    QuantizedConv1d,
-    QuantizedLayerNorm,
-    QuantizedGroupNorm,
-    convert_linear_to_quantized,
-    convert_conv1d_to_quantized
-)
-from .quantization_utils import (
-    QuantizationConfig,
-    quantize_model,
-    get_quantization_stats,
-    compare_model_sizes,
-    get_quantization_config,
-    apply_quantization,
-    apply_quantization_with_hp_integration,
-    QUANTIZATION_CONFIGS
-)
+# Quantization modules removed - LSQ quantization is disabled
 
 __all__ = [
     # Core wav2vec2 components
@@ -73,30 +46,5 @@ __all__ = [
     'prune_conv1d_layer',
     'prune_layer_norm',
     
-    # Quantization components
-    'LSQQuantizer',
-    'LSQQuantizerFunction',
-    'create_lsq_quantizer',
-    'LSQ_8BIT_SYMMETRIC',
-    'LSQ_8BIT_ASYMMETRIC',
-    'LSQ_4BIT_SYMMETRIC',
-    'LSQ_4BIT_ASYMMETRIC',
-    
-    # Quantized layers
-    'QuantizedLinear',
-    'QuantizedConv1d',
-    'QuantizedLayerNorm',
-    'QuantizedGroupNorm',
-    'convert_linear_to_quantized',
-    'convert_conv1d_to_quantized',
-    
-    # Quantization utilities
-    'QuantizationConfig',
-    'quantize_model',
-    'get_quantization_stats',
-    'compare_model_sizes',
-    'get_quantization_config',
-    'apply_quantization',
-    'apply_quantization_with_hp_integration',
-    'QUANTIZATION_CONFIGS'
+    # Quantization components removed - LSQ quantization is disabled
 ]

@@ -67,24 +67,7 @@ def train(config='conf/config.yaml', **kwargs):
         for k, v in prune_defaults.items():
             configs.setdefault(k, v)
 
-    # quantization related hyper-parameters
-    use_quantization = configs.get("use_quantization", False)
-    if use_quantization:
-        quant_defaults = {
-            'use_quantization': False,
-            'quantization_config': '8bit_symmetric',
-            'quantize_weights': True,
-            'quantize_activations': False,
-            'preserve_hp_gating': True,
-            'freeze_lsq_steps': 2000,
-            'lsq_step_lr': 1e-5,
-            'grad_clip_norm': 1.0,
-            'per_channel_weights': True,
-            'per_channel_activations': False,
-            'quantize_bias': False,
-        }
-        for k, v in quant_defaults.items():
-            configs.setdefault(k, v)
+    # Quantization support removed - LSQ quantization is disabled
     checkpoint = configs.get('checkpoint', None)
     # dist configs
     local_rank = int(os.environ.get('LOCAL_RANK', 0))
@@ -153,9 +136,18 @@ def train(config='conf/config.yaml', **kwargs):
     frontend_type = configs['dataset_args'].get('frontend', 'fbank')
     if frontend_type != "fbank":
         frontend_args = frontend_type + "_args"
+        # 准备hard_concrete_config参数
+        hard_concrete_config = {
+            'init_mean': configs.get('init_mean', 0.01),
+            'temperature': configs.get('temperature', 1.0),
+            'min_temperature': configs.get('min_temperature', 0.1),
+            'temperature_decay': configs.get('temperature_decay', 0.95),
+            'temperature_decay_freq': configs.get('temperature_decay_freq', 100)
+        }
         frontend = frontend_class_dict[frontend_type](
             **configs['dataset_args'][frontend_args],
-            sample_rate=configs['dataset_args']['resample_rate'])
+            sample_rate=configs['dataset_args']['resample_rate'],
+            hard_concrete_config=hard_concrete_config)
         configs['model_args']['feat_dim'] = frontend.output_size()
         model = get_speaker_model(configs['model'])(**configs['model_args'])
         model.add_module("frontend", frontend)
@@ -165,72 +157,7 @@ def train(config='conf/config.yaml', **kwargs):
         num_params = sum(param.numel() for param in model.parameters())
         logger.info('speaker_model size: {}'.format(num_params))
 
-    # Apply quantization (guarded) before loading checkpoint
-    if use_quantization:
-        if rank == 0:
-            logger.info("<== Quantization ==>\nApplying quantization to model (guarded)...")
-        try:
-            # Prefer wespeaker's quantization if exists
-            from wespeaker.frontend.wav2vec2 import apply_quantization_with_hp_integration, get_quantization_config  # type: ignore
-            quant_src = 'wespeaker.frontend.wav2vec2'
-        except Exception:
-            try:
-                # Fallback: allow reuse of wedefense implementation if available in PYTHONPATH
-                from wedefense.frontend.wav2vec2 import apply_quantization_with_hp_integration, get_quantization_config  # type: ignore
-                quant_src = 'wedefense.frontend.wav2vec2'
-            except Exception as e:  # no quantization utils
-                if rank == 0:
-                    logger.warning(f"Quantization utilities not found: {e}. Continue without quantization.")
-                use_quantization = False
-                configs['use_quantization'] = False
-        if use_quantization:
-            try:
-                quant_config = get_quantization_config(configs['quantization_config'])
-                if configs.get('quantize_weights', True):
-                    quant_config.quantize_weights = True
-                if configs.get('quantize_activations', False):
-                    quant_config.quantize_activations = True
-                quant_config.per_channel_weights = configs.get('per_channel_weights', True)
-                quant_config.per_channel_activations = configs.get('per_channel_activations', False)
-                if 'quantize_bias' in configs:
-                    quant_config.quantize_bias = configs['quantize_bias']
-
-                pruning_config = {
-                    'target_sparsity': configs.get('target_sparsity', 0.5),
-                    'sparsity_warmup_epochs': configs.get('sparsity_warmup_epochs', 7),
-                    'sparsity_schedule': configs.get('sparsity_schedule', 'cosine'),
-                    'min_sparsity': configs.get('min_sparsity', 0.0),
-                    'plateau_start_ratio': configs.get('plateau_start_ratio', 0.9),
-                    'min_temperature': configs.get('min_temperature', 0.1),
-                    'temperature_decay': configs.get('temperature_decay', 0.95),
-                    'temperature_decay_freq': configs.get('temperature_decay_freq', 100),
-                }
-                if checkpoint is not None and configs['model_init'] is None:
-                    logger.info('Load checkpoint before quantization: {}'.format(checkpoint))
-                    load_checkpoint(model, checkpoint)
-                    if '.bin' in checkpoint:
-                        start_epoch = 1
-                    else:   
-                        start_epoch = int(re.findall(r"(?<=model_)\d*(?=.pt)",
-                                                    checkpoint)[0]) + 1
-                    logger.info('Load checkpoint: {}'.format(checkpoint))
-                else:
-                    start_epoch = 1
-
-                model = apply_quantization_with_hp_integration(
-                    model,
-                    config=quant_config,
-                    enable_pruning=use_pruning,
-                    pruning_config=pruning_config,
-                )
-                if rank == 0:
-                    quantized_params = sum(param.numel() for param in model.parameters())
-                    logger.info(f"Quantization applied via {quant_src}. Quantized model size: {quantized_params}")
-            except Exception as e:
-                if rank == 0:
-                    logger.error(f"Failed to apply quantization: {e}. Continue without quantization.")
-                use_quantization = False
-                configs['use_quantization'] = False
+    # Quantization support removed - LSQ quantization is disabled
     # For model_init, only frontend and speaker model are needed !!!
     if configs['model_init'] is not None:
         logger.info('Load initial model from {}'.format(configs['model_init']))
@@ -266,48 +193,19 @@ def train(config='conf/config.yaml', **kwargs):
     # If specify checkpoint, load some info from checkpoint.
     # For checkpoint, frontend, speaker model, and projection layer
     # are all needed !!!
-    if checkpoint is not None and not use_quantization:
+    if checkpoint is not None:
         load_checkpoint(model, checkpoint)
         start_epoch = int(re.findall(r"(?<=model_)\d*(?=.pt)",
                                      checkpoint)[0]) + 1 if '.bin' not in checkpoint else 1
         logger.info('Load checkpoint: {}'.format(checkpoint))
-    elif checkpoint is not None and use_quantization:
-        all_state_dict = torch.load(checkpoint, map_location='cpu')
-        
-        model_state_dict = model.state_dict()
-        loaded_keys = []
-        
-        for key in model_state_dict.keys():
-            if key == 'projection.weight':  # Use 'in' to support more flexible key matching
-                if key in all_state_dict:
-                    # Check if dimensions match
-                    if model_state_dict[key].shape == all_state_dict[key].shape:
-                        # Directly modify parameter tensor data
-                        model_state_dict[key].data.copy_(all_state_dict[key])
-                        loaded_keys.append(key)
-                        logger.info('Load projection weight: {} (shape: {})'.format(
-                            key, model_state_dict[key].shape))
-                    else:
-                        logger.warning('Shape mismatch for {}: model {} vs checkpoint {}'.format(
-                            key, model_state_dict[key].shape, all_state_dict[key].shape))
-                else:
-                    logger.warning('Key {} not found in checkpoint'.format(key))
-        
-        if not loaded_keys:
-            logger.warning('No projection.weight keys found in model or checkpoint')
-
-        start_epoch = int(re.findall(r"(?<=model_)\d*(?=.pt)",
-                                     checkpoint)[0]) + 1 if '.bin' not in checkpoint else 1
-        logger.info('Load checkpoint: {} (loaded {} projection weights)'.format(
-            checkpoint, len(loaded_keys)))
     else:
         start_epoch = 1
     logger.info('start_epoch: {}'.format(start_epoch))
 
-    # Freeze pretraining-specific params; keep LSQ step_size trainable
+    # Freeze pretraining-specific params
     try:
         for name, param in model.named_parameters():
-            if any(k in name for k in ["project_q", "final_proj"]) or ("quantizer" in name and "step_size" not in name):
+            if any(k in name for k in ["project_q", "final_proj"]):
                 param.requires_grad = False
     except Exception:
         pass
@@ -369,34 +267,8 @@ def train(config='conf/config.yaml', **kwargs):
         configs['reg_lr'] = reg_lr
         configs['lambda_pair'] = lambda_pair
     else:
-        # Build optimizer with optional two-phase LSQ support (guarded)
-        optimizer = None
-        if use_quantization:
-            try:
-                from wespeaker.frontend.wav2vec2.quantization_utils import build_two_phase_lsq_optimizer, collect_lsq_step_size_params  # type: ignore
-                base_opt_cls = getattr(torch.optim, configs['optimizer'])
-                main_lr = configs['optimizer_args']['lr']
-                step_lr = configs.get('lsq_step_lr', main_lr)
-                optimizer = build_two_phase_lsq_optimizer(ddp_model, base_opt_cls, main_lr=main_lr, step_lr=step_lr, **{k: v for k, v in configs['optimizer_args'].items() if k != 'lr'})
-                if rank == 0:
-                    lsq_params = collect_lsq_step_size_params(ddp_model)
-                    logger.info(f"Enabled two-phase LSQ optimizer: {len(lsq_params)} step_size params, step_lr={step_lr}")
-            except Exception:
-                try:
-                    from wedefense.frontend.wav2vec2.quantization_utils import build_two_phase_lsq_optimizer, collect_lsq_step_size_params  # type: ignore
-                    base_opt_cls = getattr(torch.optim, configs['optimizer'])
-                    main_lr = configs['optimizer_args']['lr']
-                    step_lr = configs.get('lsq_step_lr', main_lr)
-                    optimizer = build_two_phase_lsq_optimizer(ddp_model, base_opt_cls, main_lr=main_lr, step_lr=step_lr, **{k: v for k, v in configs['optimizer_args'].items() if k != 'lr'})
-                    if rank == 0:
-                        lsq_params = collect_lsq_step_size_params(ddp_model)
-                        logger.info(f"Enabled two-phase LSQ optimizer (wedefense utils): {len(lsq_params)} step_size params, step_lr={step_lr}")
-                except Exception as e:
-                    if rank == 0:
-                        logger.warning(f"Two-phase LSQ optimizer unavailable: {e}. Falling back to single optimizer.")
-                    optimizer = getattr(torch.optim, configs['optimizer'])(ddp_model.parameters(), **configs['optimizer_args'])
-        else:
-            optimizer = getattr(torch.optim, configs['optimizer'])(ddp_model.parameters(), **configs['optimizer_args'])
+        # Build standard optimizer
+        optimizer = getattr(torch.optim, configs['optimizer'])(ddp_model.parameters(), **configs['optimizer_args'])
     if rank == 0:
         logger.info("<== Optimizer ==>")
         logger.info("optimizer is: " + configs['optimizer'])
@@ -436,34 +308,11 @@ def train(config='conf/config.yaml', **kwargs):
     if rank == 0:
         logger.info("<== MarginScheduler ==>")
 
-    # Optional two-phase LSQ controller
-    lsq_controller = None
-    if use_quantization:
-        try:
-            from wespeaker.frontend.wav2vec2.quantization_utils import TwoPhaseLSQController  # type: ignore
-            lsq_controller = TwoPhaseLSQController(
-                model=ddp_model,
-                optimizer=optimizer,
-                freeze_steps=int(configs.get('freeze_lsq_steps', 2000)),
-                clip_norm=float(configs.get('grad_clip_norm', 1.0)),
-            )
-            configs['lsq_controller'] = lsq_controller
-        except Exception:
-            try:
-                from wedefense.frontend.wav2vec2.quantization_utils import TwoPhaseLSQController  # type: ignore
-                lsq_controller = TwoPhaseLSQController(
-                    model=ddp_model,
-                    optimizer=optimizer,
-                    freeze_steps=int(configs.get('freeze_lsq_steps', 2000)),
-                    clip_norm=float(configs.get('grad_clip_norm', 1.0)),
-                )
-                configs['lsq_controller'] = lsq_controller
-            except Exception:
-                pass
+    # LSQ controller removed - LSQ quantization is disabled
 
     # save config.yaml
     if rank == 0:  
-        cfg_to_save = {k: v for k, v in configs.items() if k != "lambda_pair" and k != "lsq_controller"}
+        cfg_to_save = {k: v for k, v in configs.items() if k != "lambda_pair"}
         saved_config_path = os.path.join(configs['exp_dir'], 'config.yaml')
         with open(saved_config_path, 'w') as fout:
             data = yaml.dump(cfg_to_save)

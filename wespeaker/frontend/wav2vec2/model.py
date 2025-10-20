@@ -63,6 +63,7 @@ class Wav2Vec2Model(Module):
         waveforms: Tensor,
         lengths: Optional[Tensor] = None,
         num_layers: Optional[int] = None,
+        current_iter: Optional[int] = None,
     ) -> Tuple[List[Tensor], Optional[Tensor]]:
         """Extract feature vectors from raw waveforms
 
@@ -106,13 +107,13 @@ class Wav2Vec2Model(Module):
                 waveforms = F.layer_norm(waveforms, waveforms.shape[-1:])
 
         # cnn_start = time.time()
-        x, lengths = self.feature_extractor(waveforms, lengths)
+        x, lengths = self.feature_extractor(waveforms, lengths, current_iter)
         # cnn_end = time.time()
         # print(f'cnn elapsed: {cnn_end - cnn_start}')
         if self.feature_grad_mult != 1.0:
             x = components.GradMultiply.apply(x, self.feature_grad_mult)
         # trans_start = time.time()
-        x = self.encoder.extract_features(x, lengths, num_layers)   # (num_layers+1,), including the input
+        x = self.encoder.extract_features(x, lengths, num_layers, current_iter)   # (num_layers+1,), including the input
         # trans_end = time.time()
         # print(f'trans elapsed : {trans_end - trans_start}')
         return x, lengths
@@ -139,6 +140,7 @@ class Wav2Vec2Model(Module):
         self,
         waveforms: Tensor,
         lengths: Optional[Tensor] = None,
+        current_iter: Optional[int] = None,
     ) -> Tuple[Tensor, Optional[Tensor]]:
         """Compute the sequence of probability distribution over labels.
 
@@ -173,8 +175,8 @@ class Wav2Vec2Model(Module):
             else:
                 waveforms = F.layer_norm(waveforms, waveforms.shape[-1:])
 
-        x, lengths = self.feature_extractor(waveforms, lengths)
-        x = self.encoder(x, lengths)
+        x, lengths = self.feature_extractor(waveforms, lengths, current_iter)
+        x = self.encoder(x, lengths, current_iter)
         if self.aux is not None:
             x = self.aux(x)
         return x, lengths
@@ -215,7 +217,8 @@ def wav2vec2_model_original(
     encoder_prune_attention_layer: bool = False,
     encoder_prune_feed_forward_intermediate: bool = False,
     encoder_prune_feed_forward_layer: bool = False,
-    use_layerwise_prune: str = False
+    use_layerwise_prune: str = False,
+    hard_concrete_config: Optional[dict] = None
 ) -> Wav2Vec2Model:
     """Builds custom :class:`~torchaudio.models.Wav2Vec2Model`.
 
@@ -344,6 +347,7 @@ def wav2vec2_model_original(
     feature_extractor = components._get_feature_extractor(
         extractor_mode, extractor_conv_layer_config, extractor_conv_bias, 
         prune_conv_channels=extractor_prune_conv_channels,
+        hard_concrete_config=hard_concrete_config,
     )
     encoder = components._get_encoder(
         in_features=extractor_conv_layer_config[-1][0],
@@ -366,6 +370,7 @@ def wav2vec2_model_original(
         prune_attention_layer=encoder_prune_attention_layer,
         prune_feed_forward_intermediate=encoder_prune_feed_forward_intermediate,
         prune_feed_forward_layer=encoder_prune_feed_forward_layer,
+        hard_concrete_config=hard_concrete_config,
     )
     aux = None
     if aux_num_out is not None:
@@ -773,7 +778,8 @@ def wavlm_model(
     encoder_prune_attention_layer: bool = False,
     encoder_prune_feed_forward_intermediate: bool = False,
     encoder_prune_feed_forward_layer: bool = False,
-    use_layerwise_prune: str = False
+    use_layerwise_prune: str = False,
+    hard_concrete_config: Optional[dict] = None
 ) -> Wav2Vec2Model:
     """Builds custom WaveLM model :cite:`chen2022wavlm`. The architecture is compatible
     with Wav2Vec2 model :cite:`baevski2020wav2vec`, and so the output object is
@@ -844,6 +850,7 @@ def wavlm_model(
     feature_extractor = components._get_feature_extractor(
         extractor_mode, extractor_conv_layer_config, extractor_conv_bias,
         prune_conv_channels=extractor_prune_conv_channels,
+        hard_concrete_config=hard_concrete_config,
     )
     encoder = components._get_wavlm_encoder(
         in_features=extractor_conv_layer_config[-1][0],
@@ -868,7 +875,8 @@ def wavlm_model(
         prune_attention_layer=encoder_prune_attention_layer,
         prune_feed_forward_intermediate=encoder_prune_feed_forward_intermediate,
         prune_feed_forward_layer=encoder_prune_feed_forward_layer,
-        use_layerwise_prune=use_layerwise_prune
+        use_layerwise_prune=use_layerwise_prune,
+        hard_concrete_config=hard_concrete_config
     )
     aux = None
     if aux_num_out is not None:

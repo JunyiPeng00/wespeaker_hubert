@@ -14,12 +14,20 @@
 
 
 # from .s3prl import S3prlFrontend
-from .whisper_encoder import whisper_encoder
+try:
+    from .whisper_encoder import whisper_encoder
+    WHISPER_AVAILABLE = True
+except ImportError:
+    whisper_encoder = None
+    WHISPER_AVAILABLE = False
+
 from .get_hf_ssl_pruning import HuggingfaceFrontend
 
 frontend_class_dict = {
     'fbank': None,
     # 's3prl': S3prlFrontend,
-    'whisper_encoder': whisper_encoder,
     'huggingface': HuggingfaceFrontend
 }
+
+if WHISPER_AVAILABLE:
+    frontend_class_dict['whisper_encoder'] = whisper_encoder

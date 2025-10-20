@@ -73,6 +73,7 @@ class ConvLayerBlock(Module):
         bias: bool,
         layer_norm: Optional[Module],
         prune_conv_channels: bool = False,
+        hard_concrete_config: Optional[dict] = None,
     ):
         super().__init__()
         self.kernel_size = kernel_size
@@ -87,7 +88,16 @@ class ConvLayerBlock(Module):
         )
 
         if prune_conv_channels:
-            self.hard_concrete = HardConcrete(n_in=out_channels, init_mean=0.01)
+            # 使用配置参数创建Hard Concrete
+            config = hard_concrete_config or {}
+            self.hard_concrete = HardConcrete(
+                n_in=out_channels, 
+                init_mean=config.get('init_mean', 0.01),
+                temperature=config.get('temperature', 1.0),
+                min_temperature=config.get('min_temperature', 0.1),
+                temperature_decay=config.get('temperature_decay', 0.95),
+                temperature_decay_freq=config.get('temperature_decay_freq', 100)
+            )
         else:
             self.hard_concrete = None
 
@@ -95,11 +105,13 @@ class ConvLayerBlock(Module):
         self,
         x: Tensor,
         length: Optional[Tensor],
+        current_iter: Optional[int] = None,
     ) -> Tuple[Tensor, Optional[Tensor]]:
         """
         Args:
             x (Tensor): Shape: ``[batch, in_channels, in_frame]``.
             length (Tensor or None, optional): Shape ``[batch, ]``.
+            current_iter (int, optional): Current training iteration for temperature annealing.
         Returns:
             Tensor: Shape ``[batch, out_channels, out_frames]``.
             Optional[Tensor]: Shape ``[batch, ]``.
@@ -110,7 +122,7 @@ class ConvLayerBlock(Module):
         x = nn.functional.gelu(x)
 
         if self.hard_concrete is not None:
-            channel_mask = self.hard_concrete()  # hard concrete mask, (out_channels,)
+            channel_mask = self.hard_concrete(current_iter)  # hard concrete mask, (out_channels,)
             x = x * channel_mask.unsqueeze(-1)
 
         if length is not None:
@@ -168,6 +180,7 @@ class FeatureExtractor(Module):
         self,
         x: Tensor,
         length: Optional[Tensor],
+        current_iter: Optional[int] = None,
     ) -> Tuple[Tensor, Optional[Tensor]]:
         """
         Args:
@@ -188,7 +201,7 @@ class FeatureExtractor(Module):
 
         x = x.unsqueeze(1)  # (batch, channel==1, frame)
         for layer in self.conv_layers:
-            x, length = layer(x, length)  # (batch, feature, frame)
+            x, length = layer(x, length, current_iter)  # (batch, feature, frame)
         x = x.transpose(1, 2)  # (batch, frame, feature)
         x = x * self.dummy_weight
         return x, length
@@ -367,6 +380,7 @@ class SelfAttention(Module):
         dropout: float = 0.0,
         prune_heads: bool = False,  # whether to prune attention heads
         prune_layer: bool = False,  # whether to prune entire attention layers
+        hard_concrete_config: Optional[dict] = None,
     ):
         super().__init__()
 
@@ -383,12 +397,30 @@ class SelfAttention(Module):
         self.out_proj = nn.Linear(num_heads * head_dim, embed_dim, bias=True)
 
         if prune_heads:
-            self.hard_concrete_for_heads = HardConcrete(n_in=num_heads, init_mean=0.01)
+            # 使用配置参数创建Hard Concrete
+            config = hard_concrete_config or {}
+            self.hard_concrete_for_heads = HardConcrete(
+                n_in=num_heads, 
+                init_mean=config.get('init_mean', 0.01),
+                temperature=config.get('temperature', 1.0),
+                min_temperature=config.get('min_temperature', 0.1),
+                temperature_decay=config.get('temperature_decay', 0.95),
+                temperature_decay_freq=config.get('temperature_decay_freq', 100)
+            )
         else:
             self.hard_concrete_for_heads = None
 
         if prune_layer:
-            self.hard_concrete_for_layer = HardConcrete(n_in=1, init_mean=0.01)
+            # 使用配置参数创建Hard Concrete
+            config = hard_concrete_config or {}
+            self.hard_concrete_for_layer = HardConcrete(
+                n_in=1, 
+                init_mean=config.get('init_mean', 0.01),
+                temperature=config.get('temperature', 1.0),
+                min_temperature=config.get('min_temperature', 0.1),
+                temperature_decay=config.get('temperature_decay', 0.95),
+                temperature_decay_freq=config.get('temperature_decay_freq', 100)
+            )
         else:
             self.hard_concrete_for_layer = None
 
@@ -398,6 +430,7 @@ class SelfAttention(Module):
         attention_mask: Optional[Tensor] = None,
         position_bias: Optional[Tensor] = None,
         key_padding_mask: Optional[Tensor] = None,
+        current_iter: Optional[int] = None,
     ) -> Tuple[Tensor, Optional[Tensor]]:
         """
         Args:
@@ -438,7 +471,7 @@ class SelfAttention(Module):
         output = weights @ v  # B, nH, L, Hd
 
         if self.hard_concrete_for_heads is not None:
-            head_mask = self.hard_concrete_for_heads()  # (nH,)
+            head_mask = self.hard_concrete_for_heads(current_iter)  # (nH,)
             output = output * head_mask.unsqueeze(-1).unsqueeze(-1)
 
         output = output.transpose(2, 1).reshape(batch_size, length, self.num_heads * self.head_dim)
@@ -446,7 +479,7 @@ class SelfAttention(Module):
         output = self.out_proj(output)
 
         if self.hard_concrete_for_layer is not None:
-            layer_mask = self.hard_concrete_for_layer() # (1,)
+            layer_mask = self.hard_concrete_for_layer(current_iter) # (1,)
             output = output * layer_mask
 
         return output, None  # Necessary for compatibility with WavLMSelAttention
@@ -544,6 +577,7 @@ class WavLMSelfAttention(SelfAttention):
         gru_rel_pos: bool = True,
         prune_heads: bool = False,
         prune_layer: bool = False,
+        hard_concrete_config: Optional[dict] = None,
     ):
         self.total_num_heads = total_num_heads
         if remaining_heads is None:
@@ -553,7 +587,7 @@ class WavLMSelfAttention(SelfAttention):
         
         self.head_dim = embed_dim // total_num_heads
 
-        super().__init__(embed_dim, len(self.remaining_heads), self.head_dim, dropout, prune_heads, prune_layer)
+        super().__init__(embed_dim, len(self.remaining_heads), self.head_dim, dropout, prune_heads, prune_layer, hard_concrete_config)
 
         self.has_relative_attention_bias = has_relative_attention_bias
         self.num_buckets = num_buckets
@@ -638,6 +672,7 @@ class WavLMSelfAttention(SelfAttention):
         attention_mask: Optional[Tensor] = None,
         position_bias: Optional[Tensor] = None,
         key_padding_mask: Optional[Tensor] = None,
+        current_iter: Optional[int] = None,
     ) -> Tuple[Tensor, Optional[Tensor]]:
         """
         Args:
@@ -681,13 +716,16 @@ class WavLMSelfAttention(SelfAttention):
 
         attn_mask = attn_mask_rel_pos
         if attention_mask is not None:
-            attn_mask = attn_mask + attention_mask
+            if attn_mask is not None:
+                attn_mask = attn_mask + attention_mask
+            else:
+                attn_mask = attention_mask
         if key_padding_mask is not None:
             attn_mask = attn_mask.masked_fill(
                 key_padding_mask.reshape(bsz, 1, 1, seq_len),
                 float("-inf")
             )
-        attn_output, _ = super().forward(query, attention_mask=attn_mask)
+        attn_output, _ = super().forward(query, attention_mask=attn_mask, current_iter=current_iter)
 
         return attn_output, position_bias
 
@@ -754,6 +792,7 @@ class FeedForward(Module):
         output_dropout: float,
         prune_intermediate: bool = False,
         prune_layer: bool = False,
+        hard_concrete_config: Optional[dict] = None,
     ):
         super().__init__()
         self.intermediate_dense = nn.Linear(io_features, intermediate_features)
@@ -762,21 +801,38 @@ class FeedForward(Module):
         self.output_dropout = nn.Dropout(output_dropout)
 
         if prune_intermediate:
+            # 使用配置参数创建Hard Concrete
+            config = hard_concrete_config or {}
             self.hard_concrete_for_intermediate = HardConcrete(
-                n_in=intermediate_features, init_mean=0.5
+                n_in=intermediate_features, 
+                init_mean=config.get('init_mean', 0.5),
+                temperature=config.get('temperature', 1.0),
+                min_temperature=config.get('min_temperature', 0.1),
+                temperature_decay=config.get('temperature_decay', 0.95),
+                temperature_decay_freq=config.get('temperature_decay_freq', 100)
             )
         else:
             self.hard_concrete_for_intermediate = None
         
         if prune_layer:
-            self.hard_concrete_for_layer = HardConcrete(n_in=1, init_mean=0.01)
+            # 使用配置参数创建Hard Concrete
+            config = hard_concrete_config or {}
+            self.hard_concrete_for_layer = HardConcrete(
+                n_in=1, 
+                init_mean=config.get('init_mean', 0.01),
+                temperature=config.get('temperature', 1.0),
+                min_temperature=config.get('min_temperature', 0.1),
+                temperature_decay=config.get('temperature_decay', 0.95),
+                temperature_decay_freq=config.get('temperature_decay_freq', 100)
+            )
         else:
             self.hard_concrete_for_layer = None
 
-    def forward(self, x):
+    def forward(self, x, current_iter: Optional[int] = None):
         """
         Args:
             x (Tensor): shape: `(batch, sequence_length, io_features)`
+            current_iter (int, optional): Current training iteration for temperature annealing.
         Returns:
             x (Tensor): shape: `(batch, sequence_length, io_features)`
         """
@@ -785,14 +841,14 @@ class FeedForward(Module):
         x = self.intermediate_dropout(x)
 
         if self.hard_concrete_for_intermediate is not None:
-            intermediate_mask = self.hard_concrete_for_intermediate()   # (intermediate_features,)
+            intermediate_mask = self.hard_concrete_for_intermediate(current_iter)   # (intermediate_features,)
             x = x * intermediate_mask
 
         x = self.output_dense(x)
         x = self.output_dropout(x)
 
         if self.hard_concrete_for_layer is not None:
-            layer_mask = self.hard_concrete_for_layer()     # (1,)
+            layer_mask = self.hard_concrete_for_layer(current_iter)     # (1,)
             x = x * layer_mask
 
         return x
@@ -906,6 +962,7 @@ class EncoderLayer(Module):
         attention_mask: Optional[Tensor] = None,
         position_bias: Optional[Tensor] = None,
         key_padding_mask: Optional[Tensor] = None,
+        current_iter: Optional[int] = None,
     ) -> Tuple[Tensor, Optional[Tensor]]:
         """
         Args:
@@ -928,7 +985,7 @@ class EncoderLayer(Module):
                 x = self.layer_norm(x)
 
             x, position_bias = self.attention(
-                x, attention_mask=attention_mask, position_bias=position_bias, key_padding_mask=key_padding_mask
+                x, attention_mask=attention_mask, position_bias=position_bias, key_padding_mask=key_padding_mask, current_iter=current_iter
             )
 
             x = self.dropout(x)
@@ -936,12 +993,12 @@ class EncoderLayer(Module):
 
         if self.layer_norm_first:
             if self.feed_forward is not None:
-                x = x + self.feed_forward(self.final_layer_norm(x))
+                x = x + self.feed_forward(self.final_layer_norm(x), current_iter)
         else:
             # NOTE: for post norm, the layer norms should always be applied even if the layers are pruned.
             x = self.layer_norm(x)
             if self.feed_forward is not None:
-                x = x + self.feed_forward(x)
+                x = x + self.feed_forward(x, current_iter)
             x = self.final_layer_norm(x)
         return x, position_bias
 
@@ -985,11 +1042,12 @@ class Transformer(Module):
         x: Tensor,
         attention_mask: Optional[Tensor] = None,
         position_bias: Optional[Tensor] = None,
+        current_iter: Optional[int] = None,
     ) -> Tensor:
         x = self._preprocess(x)
         for layer in self.layers:
             if not (self.training and torch.rand(1).item() <= self.layer_drop):
-                x, position_bias = layer(x, attention_mask, position_bias=position_bias)
+                x, position_bias = layer(x, attention_mask, position_bias=position_bias, current_iter=current_iter)
 
         if not self.layer_norm_first:
             x = self.layer_norm(x)
@@ -1001,6 +1059,7 @@ class Transformer(Module):
         attention_mask: Optional[Tensor] = None,
         num_layers: Optional[int] = None,
         position_bias: Optional[Tensor] = None,
+        current_iter: Optional[int] = None,
     ) -> List[Tensor]:
         if num_layers is not None:
             if not 0 < num_layers <= len(self.layers):
@@ -1012,7 +1071,7 @@ class Transformer(Module):
         ret.append(x)
         
         for layer in self.layers:
-            x, position_bias = layer(x, attention_mask, position_bias=position_bias)
+            x, position_bias = layer(x, attention_mask, position_bias=position_bias, current_iter=current_iter)
             ret.append(x)
             if num_layers is not None and len(ret) >= num_layers:
                 return ret
@@ -1079,9 +1138,10 @@ class Encoder(Module):
         self,
         features: Tensor,
         lengths: Optional[Tensor] = None,
+        current_iter: Optional[int] = None,
     ) -> Tensor:
         x, mask = self._preprocess(features, lengths)
-        x = self.transformer(x, attention_mask=mask)
+        x = self.transformer(x, attention_mask=mask, current_iter=current_iter)
         return x
 
     def extract_features(
@@ -1089,9 +1149,10 @@ class Encoder(Module):
         features: Tensor,
         lengths: Optional[Tensor] = None,
         num_layers: Optional[int] = None,
+        current_iter: Optional[int] = None,
     ) -> List[Tensor]:
         x, masks = self._preprocess(features, lengths)
-        interm = self.transformer.get_intermediate_outputs(x, attention_mask=masks, num_layers=num_layers)
+        interm = self.transformer.get_intermediate_outputs(x, attention_mask=masks, num_layers=num_layers, current_iter=current_iter)
         # return [x] + interm
         return interm
     
@@ -1115,6 +1176,7 @@ def _get_feature_extractor(
     shapes: List[Tuple[int, int, int]],
     bias: bool,
     prune_conv_channels: bool = False,
+    hard_concrete_config: Optional[dict] = None,
 ) -> FeatureExtractor:
     """
     Args:
@@ -1181,6 +1243,7 @@ def _get_feature_extractor(
                 bias=bias,
                 layer_norm=normalization,
                 prune_conv_channels=prune_conv_channels,
+                hard_concrete_config=hard_concrete_config,
             )
         )
         in_channels = out_channels
@@ -1209,6 +1272,7 @@ def _get_encoder(
     prune_feed_forward_intermediate: bool = False,
     prune_feed_forward_layer: bool = False,
     use_layerwise_prune: str = False,  # Added for Wav2Vec2 support
+    hard_concrete_config: Optional[dict] = None,
 ) -> Encoder:
     """
     Args:
@@ -1347,6 +1411,7 @@ def _get_encoder(
                 dropout=attention_dropout,
                 prune_heads=prune_attention_heads,
                 prune_layer=prune_attention_layer,
+                hard_concrete_config=hard_concrete_config,
             )
         else:
             attention = None
@@ -1358,6 +1423,7 @@ def _get_encoder(
                 output_dropout=dropout,
                 prune_intermediate=prune_feed_forward_intermediate,
                 prune_layer=prune_feed_forward_layer,
+                hard_concrete_config=hard_concrete_config,
             )
         else:
             feed_forward = None
@@ -1404,6 +1470,7 @@ def _get_wavlm_encoder(
     prune_feed_forward_intermediate: bool = False,
     prune_feed_forward_layer: bool = False,
     use_layerwise_prune: str = False,    # e.g. 5-12
+    hard_concrete_config: Optional[dict] = None,
 ) -> Encoder:
     """
     Construct encoder for WavLM model :cite:`chen2022wavlm`. The structure of the encoder and most of the argments are
@@ -1461,6 +1528,7 @@ def _get_wavlm_encoder(
                 max_distance=max_distance,
                 prune_heads=prune_attention_heads,
                 prune_layer=prune_attention_layer,
+                hard_concrete_config=hard_concrete_config,
             )
         else:
             attention = None
@@ -1472,6 +1540,7 @@ def _get_wavlm_encoder(
                 output_dropout=dropout,
                 prune_intermediate=prune_feed_forward_intermediate,
                 prune_layer=prune_feed_forward_layer,
+                hard_concrete_config=hard_concrete_config,
             )
         else:
             feed_forward = None

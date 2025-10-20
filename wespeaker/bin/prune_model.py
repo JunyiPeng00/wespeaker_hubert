@@ -43,29 +43,7 @@ def extract(config='conf/config.yaml', **kwargs):
         configs['model_args']['feat_dim'] = frontend.output_size()
         model = get_speaker_model(configs['model'])(**configs['model_args'])
         model.add_module("frontend", frontend)
-        # quantize frontend
-        use_quantization = configs.get("use_quantization", False)
-        if use_quantization:
-            from wespeaker.frontend.wav2vec2 import apply_quantization_with_hp_integration, get_quantization_config
-
-            # Get quantization configuration
-            quant_config = get_quantization_config(configs['quantization_config'])
-            if configs.get('quantize_weights', True):
-                quant_config.quantize_weights = True
-            if configs.get('quantize_activations', False):
-                quant_config.quantize_activations = True
-            # enforce bias/per-channel from configs if provided
-            quant_config.per_channel_weights = configs.get('per_channel_weights', True)
-            quant_config.per_channel_activations = configs.get('per_channel_activations', False)
-            if 'quantize_bias' in configs:
-                quant_config.quantize_bias = configs['quantize_bias']
-                        
-            model = apply_quantization_with_hp_integration(
-                    model,
-                    config=quant_config,
-                    enable_pruning=configs.get("use_quantization", False),
-                    pruning_config={},
-                )
+        # Quantization support removed - LSQ quantization is disabled
     
     # projection layer
     projection = get_projection(configs['projection_args'])
@@ -127,13 +105,7 @@ def extract(config='conf/config.yaml', **kwargs):
     # ---------- Verify & param count ----------
     ckpt = torch.load(pruned_out_path, map_location="cpu")
     model_verify = wav2vec2_model(**ckpt['config'])
-    if configs.get("use_quantization", False):
-        model_verify = apply_quantization_with_hp_integration(
-            model_verify,
-            config=quant_config,
-            enable_pruning=False,
-            pruning_config={},
-        )
+    # Quantization support removed - LSQ quantization is disabled
 
     print(model_verify.load_state_dict(ckpt['state_dict'], strict=False))
     cur_num_params = sum(

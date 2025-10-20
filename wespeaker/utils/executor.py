@@ -52,8 +52,7 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
         plateau_start_ratio = configs.get('plateau_start_ratio', 0.9)
 
     frontend_type = configs['dataset_args'].get('frontend', 'fbank')
-    # Optional two-phase LSQ controller from configs
-    lsq_controller = configs.get('lsq_controller', None)
+    # LSQ controller removed - LSQ quantization is disabled
     for i, batch in enumerate(dataloader):
         cur_iter = (epoch - 1) * epoch_iter + i
         scheduler.step(cur_iter)
@@ -71,7 +70,7 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
             wavs_len = torch.LongTensor([wavs.shape[1]]).repeat(
                 wavs.shape[0]).to(device)  # (B)
             with torch.cuda.amp.autocast(enabled=configs['enable_amp']):
-                features, _ = model.module.frontend(wavs, wavs_len)
+                features, _ = model.module.frontend(wavs, wavs_len, cur_iter)
 
         with torch.cuda.amp.autocast(enabled=configs['enable_amp']):
             # apply cmvn
@@ -143,26 +142,14 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
         if optimizer_reg is not None:
             optimizer_reg.zero_grad()
 
-        # Two-phase LSQ: unfreeze and gradient clipping if controller provided
-        if lsq_controller is not None:
-            try:
-                lsq_controller.maybe_unfreeze((epoch - 1) * epoch_iter + i)
-            except Exception:
-                pass
+        # LSQ controller removed - LSQ quantization is disabled
 
         # scaler does nothing here if enable_amp=False
         scaler.scale(total_loss).backward()
         nn_utils.clip_grad_norm_(model.parameters(), 1.0)
 
 
-        if lsq_controller is not None:
-            try:
-                # Zero out LSQ gradients if still in frozen phase (for static graph compatibility)
-                lsq_controller.zero_lsq_gradients_if_frozen()
-                # Apply gradient clipping
-                lsq_controller.clip_gradients()
-            except Exception:
-                pass
+        # LSQ controller removed - LSQ quantization is disabled
 
         if optimizer_reg is not None:
             scaler.step(optimizer_reg)

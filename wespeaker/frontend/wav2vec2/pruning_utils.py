@@ -29,14 +29,7 @@ def prune_linear_layer(layer, index: torch.LongTensor, dim: str) -> None:
         layer.in_features = len(index) if dim == "input" else layer.in_features
         layer.out_features = len(index) if dim == "output" else layer.out_features
         
-        # Update quantizer step_size if pruning output features
-        if dim == "output" and hasattr(layer, 'weight_quantizer') and layer.weight_quantizer is not None:
-            if hasattr(layer.weight_quantizer, 'step_size') and layer.weight_quantizer.step_size is not None:
-                if layer.weight_quantizer.per_channel and layer.weight_quantizer.channel_axis == 0:
-                    # Per-channel quantization: prune step_size along channel axis
-                    layer.weight_quantizer.step_size = nn.Parameter(
-                        layer.weight_quantizer.step_size.index_select(0, index).clone().detach()
-                    )
+        # Quantization support removed - LSQ quantization is disabled
     else:
         # This is a regular nn.Linear layer
         actual_layer = layer
@@ -77,14 +70,7 @@ def prune_conv1d_layer(layer, index: torch.LongTensor, dim: str) -> None:
         layer.in_channels = len(index) if dim == "input" else layer.in_channels
         layer.out_channels = len(index) if dim == "output" else layer.out_channels
         
-        # Update quantizer step_size if pruning output channels
-        if dim == "output" and hasattr(layer, 'weight_quantizer') and layer.weight_quantizer is not None:
-            if hasattr(layer.weight_quantizer, 'step_size') and layer.weight_quantizer.step_size is not None:
-                if layer.weight_quantizer.per_channel and layer.weight_quantizer.channel_axis == 0:
-                    # Per-channel quantization: prune step_size along channel axis
-                    layer.weight_quantizer.step_size = nn.Parameter(
-                        layer.weight_quantizer.step_size.index_select(0, index).clone().detach()
-                    )
+        # Quantization support removed - LSQ quantization is disabled
     else:
         # This is a regular nn.Conv1d layer
         actual_layer = layer
