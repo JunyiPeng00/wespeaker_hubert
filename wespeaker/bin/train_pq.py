@@ -144,10 +144,22 @@ def train(config='conf/config.yaml', **kwargs):
             'temperature_decay': configs.get('temperature_decay', 0.95),
             'temperature_decay_freq': configs.get('temperature_decay_freq', 100)
         }
+        
+        # Prepare dynamic pruning parameters
+        use_dynamic_pruning = configs.get('use_dynamic_pruning', False)
+        dynamic_pruning_config = configs.get('dynamic_pruning_config', {})
+        dynamic_pruning_units = configs.get('dynamic_pruning_units', None)
+        
+        # Update upstream_args with dynamic_pruning_units if specified
+        if dynamic_pruning_units is not None:
+            configs['dataset_args'][frontend_args]['upstream_args']['dynamic_pruning_units'] = dynamic_pruning_units
+        
         frontend = frontend_class_dict[frontend_type](
             **configs['dataset_args'][frontend_args],
             sample_rate=configs['dataset_args']['resample_rate'],
-            hard_concrete_config=hard_concrete_config)
+            hard_concrete_config=hard_concrete_config,
+            use_dynamic_pruning=use_dynamic_pruning,
+            dynamic_pruning_config=dynamic_pruning_config)
         configs['model_args']['feat_dim'] = frontend.output_size()
         model = get_speaker_model(configs['model'])(**configs['model_args'])
         model.add_module("frontend", frontend)

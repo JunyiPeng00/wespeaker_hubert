@@ -110,12 +110,14 @@ class HuggingfaceFrontend(nn.Module):
 
         # 2. Build the upstream model from the newly converted checkpoint.
         pruning_units = upstream_args.get('pruning_units', '')
+        dynamic_pruning_units = upstream_args.get('dynamic_pruning_units', None)
         self.upstream, self.upstream_config = self._build_upstream(
             upstream_ckpt_path=converted_model_path,
             pruning_units=pruning_units,
             hard_concrete_config=hard_concrete_config,
             use_dynamic_pruning=use_dynamic_pruning,
-            dynamic_pruning_config=dynamic_pruning_config
+            dynamic_pruning_config=dynamic_pruning_config,
+            dynamic_pruning_units=dynamic_pruning_units
         )
 
         # 3. Freeze weights if required.
@@ -131,7 +133,8 @@ class HuggingfaceFrontend(nn.Module):
 
     def _build_upstream(
         self, upstream_ckpt_path: str, pruning_units: str, hard_concrete_config: Optional[dict] = None, 
-        use_dynamic_pruning: bool = False, dynamic_pruning_config: Optional[dict] = None
+        use_dynamic_pruning: bool = False, dynamic_pruning_config: Optional[dict] = None,
+        dynamic_pruning_units: Optional[str] = None
     ) -> Tuple[nn.Module, Mapping[str, Any]]:
         """Builds the upstream model from a WeSpeaker format checkpoint.
 
@@ -142,6 +145,9 @@ class HuggingfaceFrontend(nn.Module):
             hard_concrete_config: Configuration for HardConcrete pruning.
             use_dynamic_pruning: Whether to enable dynamic pruning.
             dynamic_pruning_config: Configuration for dynamic pruning.
+            dynamic_pruning_units: A comma-separated string specifying parts of the
+                model for dynamic pruning only (e.g., "conv,head"). If None, 
+                inherits from pruning_units for backward compatibility.
 
         Returns:
             A tuple containing:
@@ -150,16 +156,36 @@ class HuggingfaceFrontend(nn.Module):
         """
         ckpt = torch.load(upstream_ckpt_path, map_location='cpu')
         config = ckpt['config']
-        pruning_set = set(p.strip() for p in pruning_units.split(',') if p)
+        
+        # Parse static pruning units
+        static_pruning_set = set(p.strip() for p in pruning_units.split(',') if p)
+        
+        # Parse dynamic pruning units - if not specified, inherit from static for backward compatibility
+        if dynamic_pruning_units is None:
+            dynamic_pruning_set = static_pruning_set
+        else:
+            dynamic_pruning_set = set(p.strip() for p in dynamic_pruning_units.split(',') if p)
+        
         if is_rank_zero():
-            print(f'Enabled pruning units: {pruning_set}')
+            print(f'Enabled static pruning units: {static_pruning_set}')
+            print(f'Enabled dynamic pruning units: {dynamic_pruning_set}')
 
+        # Configure static pruning flags
         config.update({
-            'extractor_prune_conv_channels': 'conv' in pruning_set,
-            'encoder_prune_attention_heads': 'head' in pruning_set,
-            'encoder_prune_attention_layer': 'attlayer' in pruning_set,
-            'encoder_prune_feed_forward_intermediate': 'interm' in pruning_set,
-            'encoder_prune_feed_forward_layer': 'ffnlayer' in pruning_set,
+            'extractor_prune_conv_channels': 'conv' in static_pruning_set,
+            'encoder_prune_attention_heads': 'head' in static_pruning_set,
+            'encoder_prune_attention_layer': 'attlayer' in static_pruning_set,
+            'encoder_prune_feed_forward_intermediate': 'interm' in static_pruning_set,
+            'encoder_prune_feed_forward_layer': 'ffnlayer' in static_pruning_set,
+        })
+        
+        # Configure dynamic pruning flags
+        config.update({
+            'extractor_dynamic_prune_conv_channels': 'conv' in dynamic_pruning_set,
+            'encoder_dynamic_prune_attention_heads': 'head' in dynamic_pruning_set,
+            'encoder_dynamic_prune_attention_layer': 'attlayer' in dynamic_pruning_set,
+            'encoder_dynamic_prune_feed_forward_intermediate': 'interm' in dynamic_pruning_set,
+            'encoder_dynamic_prune_feed_forward_layer': 'ffnlayer' in dynamic_pruning_set,
         })
 
         # Ensure required parameters are present
