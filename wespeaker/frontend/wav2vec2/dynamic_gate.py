@@ -233,16 +233,73 @@ class DynamicStructuredGate(nn.Module):
         
         return final_mask
     
-    def l0_norm(self) -> torch.Tensor:
-        """Compute expected L0 norm of the static mask.
+    def l0_norm(self, x: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """Compute expected L0 norm of the effective mask E[M].
+        
+        The effective mask is computed as M = M_static ⊙ M_dynamic.
+        This method returns E[M] = E[M_static] * E[M_dynamic] for proper
+        sparsity statistics and constraints.
+        
+        Args:
+            x: Input tensor for dynamic gating computation. If None, 
+               only static mask expectation is returned.
         
         Returns:
-            Expected L0 norm as a scalar tensor.
+            Expected L0 norm of the effective mask as a scalar tensor.
         """
+        # Compute static mask expectation E[M_static]
         if self.gate_type == "hardconcrete":
-            return self.static_gate.l0_norm()
+            static_expectation = self.static_gate.l0_norm()
         else:  # sigmoid
-            return torch.sigmoid(self.static_gate).sum()
+            static_expectation = torch.sigmoid(self.static_gate).sum()
+        
+        # If no dynamic gating or no input provided, return static expectation
+        if not self.use_input_gating or self.input_predictor is None or x is None:
+            return static_expectation
+        
+        # Compute dynamic gate expectation E[M_dynamic]
+        with torch.no_grad():
+            dynamic_gate = self.input_predictor(x)  # (B, n_in)
+            
+            # Average over batch dimension to get E[M_dynamic]
+            if dynamic_gate.dim() > 1:
+                dynamic_expectation = dynamic_gate.mean(dim=0).sum()  # (n_in,) -> scalar
+            else:
+                dynamic_expectation = dynamic_gate.sum()
+        
+        # Effective mask expectation: E[M] = E[M_static] * E[M_dynamic]
+        # Weighted combination based on dynamic_weight
+        # For proper expectation, we need to ensure the result is in [0, n_in]
+        static_keep_ratio = static_expectation / self.n_in
+        dynamic_keep_ratio = dynamic_expectation / self.n_in
+        
+        # Weighted combination of keep ratios
+        effective_keep_ratio = (
+            (1 - self.dynamic_weight) * static_keep_ratio + 
+            self.dynamic_weight * (static_keep_ratio * dynamic_keep_ratio)
+        )
+        
+        # Convert back to L0 norm
+        effective_expectation = effective_keep_ratio * self.n_in
+        
+        return effective_expectation
+    
+    def get_effective_keep_ratio(self, x: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """Compute effective keep ratio for pure dynamic pruning scenarios.
+        
+        This method is specifically designed for pure dynamic pruning where
+        pruning_units=[] and use_dynamic_pruning=true. It computes the
+        effective keep ratio as E[M] = E[M_static] * E[M_dynamic] normalized by n_in.
+        
+        Args:
+            x: Input tensor for dynamic gating computation.
+        
+        Returns:
+            Effective keep ratio as a scalar tensor in [0, 1].
+        """
+        # Use the same logic as l0_norm but return normalized ratio
+        l0_norm = self.l0_norm(x)
+        return l0_norm / self.n_in
     
     def get_dynamic_regularization_loss(self) -> torch.Tensor:
         """Compute L1 regularization loss for dynamic gating.

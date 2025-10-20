@@ -23,6 +23,8 @@ from wespeaker.utils.prune_utils import (
     get_progressive_sparsity, 
     get_learning_rate_with_plateau_decay,
     compute_dynamic_pruning_loss,
+    compute_effective_keep_ratio,
+    compute_effective_l0_norm,
     set_dynamic_pruning_mode
 )
 import torch.nn.utils as nn_utils
@@ -135,10 +137,30 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
 
             # Expected current params; rely on frontend for pruning stats when available
             try:
-                cur_params = model.module.frontend.get_num_params()
+                # For dynamic pruning, try to get effective params with input features
+                if use_dynamic_pruning and hasattr(model.module.frontend, 'get_num_params'):
+                    # Check if get_num_params accepts input parameter
+                    import inspect
+                    sig = inspect.signature(model.module.frontend.get_num_params)
+                    if 'x' in sig.parameters and 'features' in locals():
+                        # Use current batch features for dynamic gating
+                        cur_params = model.module.frontend.get_num_params(features)
+                    else:
+                        cur_params = model.module.frontend.get_num_params()
+                else:
+                    cur_params = model.module.frontend.get_num_params()
             except Exception:
                 try:
-                    cur_params = model.frontend.get_num_params()
+                    # For dynamic pruning, try to get effective params with input features
+                    if use_dynamic_pruning and hasattr(model.frontend, 'get_num_params'):
+                        import inspect
+                        sig = inspect.signature(model.frontend.get_num_params)
+                        if 'x' in sig.parameters and 'features' in locals():
+                            cur_params = model.frontend.get_num_params(features)
+                        else:
+                            cur_params = model.frontend.get_num_params()
+                    else:
+                        cur_params = model.frontend.get_num_params()
                 except Exception:
                     cur_params = orig_params
 
@@ -149,6 +171,22 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
             if use_dynamic_pruning:
                 dynamic_l1_loss = compute_dynamic_pruning_loss(model, dynamic_l1_weight)
                 total_loss = total_loss + dynamic_l1_loss
+                
+                # For pure dynamic pruning, compute effective keep ratio for logging
+                if 'features' in locals() and features is not None:
+                    try:
+                        effective_keep_ratio = compute_effective_keep_ratio(model, features)
+                        effective_l0_norm = compute_effective_l0_norm(model, features)
+                        
+                        # Log effective statistics for monitoring
+                        if hasattr(logger, 'log_metrics'):
+                            logger.log_metrics({
+                                'effective_keep_ratio': effective_keep_ratio.item(),
+                                'effective_l0_norm': effective_l0_norm.item(),
+                            }, step=cur_iter)
+                    except Exception as e:
+                        # Skip logging if computation fails
+                        pass
         else:
             prune_reg, exp_sp, target_sp_cur = 0.0, None, None
             total_loss = cls_loss

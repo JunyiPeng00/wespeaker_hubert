@@ -570,16 +570,45 @@ class SelfAttention(Module):
 
         return output, None  # Necessary for compatibility with WavLMSelAttention
 
-    def get_num_params(self):
+    def get_num_params(self, x: Optional[Tensor] = None):
+        """Compute number of parameters considering dynamic pruning.
+        
+        Args:
+            x: Input tensor for dynamic gating computation.
+        
+        Returns:
+            Expected number of parameters considering effective mask.
+        """
         if self.hard_concrete_for_heads is not None:
-            num_heads = self.hard_concrete_for_heads.l0_norm()
+            # Use effective L0 norm that considers dynamic gating
+            if hasattr(self.hard_concrete_for_heads, 'l0_norm') and callable(getattr(self.hard_concrete_for_heads, 'l0_norm')):
+                # Check if the method accepts input parameter (dynamic gate)
+                import inspect
+                sig = inspect.signature(self.hard_concrete_for_heads.l0_norm)
+                if 'x' in sig.parameters:
+                    num_heads = self.hard_concrete_for_heads.l0_norm(x)
+                else:
+                    num_heads = self.hard_concrete_for_heads.l0_norm()
+            else:
+                num_heads = self.hard_concrete_for_heads.l0_norm()
         else:
             num_heads = self.num_heads
+            
         num_params = (self.embed_dim + 1) * num_heads * self.head_dim * 3 \
             + (num_heads * self.head_dim + 1) * self.embed_dim
 
         if self.hard_concrete_for_layer is not None:
-            num_params *= self.hard_concrete_for_layer.l0_norm()
+            # Use effective L0 norm that considers dynamic gating
+            if hasattr(self.hard_concrete_for_layer, 'l0_norm') and callable(getattr(self.hard_concrete_for_layer, 'l0_norm')):
+                import inspect
+                sig = inspect.signature(self.hard_concrete_for_layer.l0_norm)
+                if 'x' in sig.parameters:
+                    layer_keep_ratio = self.hard_concrete_for_layer.l0_norm(x)
+                else:
+                    layer_keep_ratio = self.hard_concrete_for_layer.l0_norm()
+            else:
+                layer_keep_ratio = self.hard_concrete_for_layer.l0_norm()
+            num_params *= layer_keep_ratio
         
         return num_params
 
@@ -1004,16 +1033,44 @@ class FeedForward(Module):
 
         return x
     
-    def get_num_params(self):
+    def get_num_params(self, x: Optional[Tensor] = None):
+        """Compute number of parameters considering dynamic pruning.
+        
+        Args:
+            x: Input tensor for dynamic gating computation.
+        
+        Returns:
+            Expected number of parameters considering effective mask.
+        """
         io_features = self.intermediate_dense.in_features
         if self.hard_concrete_for_intermediate is not None:
-            intermediate_features = self.hard_concrete_for_intermediate.l0_norm()
+            # Use effective L0 norm that considers dynamic gating
+            if hasattr(self.hard_concrete_for_intermediate, 'l0_norm') and callable(getattr(self.hard_concrete_for_intermediate, 'l0_norm')):
+                import inspect
+                sig = inspect.signature(self.hard_concrete_for_intermediate.l0_norm)
+                if 'x' in sig.parameters:
+                    intermediate_features = self.hard_concrete_for_intermediate.l0_norm(x)
+                else:
+                    intermediate_features = self.hard_concrete_for_intermediate.l0_norm()
+            else:
+                intermediate_features = self.hard_concrete_for_intermediate.l0_norm()
         else:
             intermediate_features = self.intermediate_dense.out_features
+            
         num_params = (io_features + 1) * intermediate_features + (intermediate_features + 1) * io_features
 
         if self.hard_concrete_for_layer is not None:
-            num_params *= self.hard_concrete_for_layer.l0_norm()
+            # Use effective L0 norm that considers dynamic gating
+            if hasattr(self.hard_concrete_for_layer, 'l0_norm') and callable(getattr(self.hard_concrete_for_layer, 'l0_norm')):
+                import inspect
+                sig = inspect.signature(self.hard_concrete_for_layer.l0_norm)
+                if 'x' in sig.parameters:
+                    layer_keep_ratio = self.hard_concrete_for_layer.l0_norm(x)
+                else:
+                    layer_keep_ratio = self.hard_concrete_for_layer.l0_norm()
+            else:
+                layer_keep_ratio = self.hard_concrete_for_layer.l0_norm()
+            num_params *= layer_keep_ratio
         
         return num_params
     
@@ -1153,12 +1210,20 @@ class EncoderLayer(Module):
             x = self.final_layer_norm(x)
         return x, position_bias
 
-    def get_num_params(self):
+    def get_num_params(self, x: Optional[Tensor] = None):
+        """Compute number of parameters considering dynamic pruning.
+        
+        Args:
+            x: Input tensor for dynamic gating computation.
+        
+        Returns:
+            Expected number of parameters considering effective mask.
+        """
         num_params = self.embed_dim * 2 * 2     # two layer norms
         if self.attention is not None:
-            num_params += self.attention.get_num_params()
+            num_params += self.attention.get_num_params(x)
         if self.feed_forward is not None:
-            num_params += self.feed_forward.get_num_params()
+            num_params += self.feed_forward.get_num_params(x)
         return num_params
 
 
@@ -1228,11 +1293,19 @@ class Transformer(Module):
                 return ret
         return ret
     
-    def get_num_params(self):
+    def get_num_params(self, x: Optional[Tensor] = None):
+        """Compute number of parameters considering dynamic pruning.
+        
+        Args:
+            x: Input tensor for dynamic gating computation.
+        
+        Returns:
+            Expected number of parameters considering effective mask.
+        """
         # pos_conv_embed and layer_norm
         num_params = sum(p.numel() for p in self.pos_conv_embed.parameters()) + self.pos_conv_embed.embed_dim * 2
         for layer in self.layers:
-            num_params += layer.get_num_params()
+            num_params += layer.get_num_params(x)
         return num_params
     
     def prune(self):
@@ -1307,10 +1380,18 @@ class Encoder(Module):
         # return [x] + interm
         return interm
     
-    def get_num_params(self, in_features):
-        """Calculate the current model size."""
+    def get_num_params(self, in_features, x: Optional[Tensor] = None):
+        """Calculate the current model size considering dynamic pruning.
+        
+        Args:
+            in_features: Input feature dimension.
+            x: Input tensor for dynamic gating computation.
+        
+        Returns:
+            Expected number of parameters considering effective mask.
+        """
         feature_projection_size = self.feature_projection.get_num_params(in_features)
-        transformer_size = self.transformer.get_num_params()
+        transformer_size = self.transformer.get_num_params(x)
         return feature_projection_size + transformer_size
     
     def prune(self, conv_out_index):

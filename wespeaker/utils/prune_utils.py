@@ -282,6 +282,76 @@ def compute_dynamic_pruning_loss(model: torch.nn.Module, l1_weight: float = 1e-4
     return l1_weight * total_l1_loss
 
 
+def compute_effective_keep_ratio(model: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
+    """Compute effective keep ratio for dynamic pruning components.
+    
+    This function computes the effective keep ratio E[M] = E[M_static] * E[M_dynamic]
+    for all dynamic pruning components in the model, considering both static and
+    dynamic gating mechanisms.
+    
+    Args:
+        model: The PyTorch model containing dynamic pruning components.
+        x: Input tensor for dynamic gating computation.
+    
+    Returns:
+        Effective keep ratio as a scalar tensor in [0, 1].
+    """
+    total_keep_ratio = 0.0
+    num_components = 0
+    
+    for module in model.modules():
+        # Check if module has effective keep ratio method
+        if hasattr(module, 'get_effective_keep_ratio'):
+            try:
+                keep_ratio = module.get_effective_keep_ratio(x)
+                if keep_ratio.numel() == 1:  # Scalar tensor
+                    total_keep_ratio += keep_ratio.item()
+                    num_components += 1
+            except Exception:
+                # Skip modules that don't support dynamic gating
+                continue
+    
+    if num_components == 0:
+        return torch.tensor(1.0, device=x.device)
+    
+    return torch.tensor(total_keep_ratio / num_components, device=x.device)
+
+
+def compute_effective_l0_norm(model: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
+    """Compute effective L0 norm for dynamic pruning components.
+    
+    This function computes the effective L0 norm E[M] for all dynamic pruning
+    components in the model, considering both static and dynamic gating mechanisms.
+    
+    Args:
+        model: The PyTorch model containing dynamic pruning components.
+        x: Input tensor for dynamic gating computation.
+    
+    Returns:
+        Effective L0 norm as a scalar tensor.
+    """
+    total_l0_norm = 0.0
+    
+    for module in model.modules():
+        # Check if module has l0_norm method that accepts input
+        if hasattr(module, 'l0_norm') and callable(getattr(module, 'l0_norm')):
+            try:
+                import inspect
+                sig = inspect.signature(module.l0_norm)
+                if 'x' in sig.parameters:
+                    l0_norm = module.l0_norm(x)
+                else:
+                    l0_norm = module.l0_norm()
+                
+                if l0_norm.numel() == 1:  # Scalar tensor
+                    total_l0_norm += l0_norm.item()
+            except Exception:
+                # Skip modules that don't support the expected interface
+                continue
+    
+    return torch.tensor(total_l0_norm, device=x.device)
+
+
 def set_dynamic_pruning_mode(model: torch.nn.Module, dynamic: bool = True) -> None:
     """Set dynamic pruning mode for all dynamic gates in the model.
     
