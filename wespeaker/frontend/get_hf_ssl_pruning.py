@@ -68,6 +68,8 @@ class HuggingfaceFrontend(nn.Module):
         frame_length: int = 20,
         sample_rate: int = 16000,
         hard_concrete_config: Optional[dict] = None,
+        use_dynamic_pruning: bool = False,
+        dynamic_pruning_config: Optional[dict] = None,
     ):
         """Initializes the HuggingfaceFrontend.
 
@@ -78,6 +80,9 @@ class HuggingfaceFrontend(nn.Module):
             download_dir: The directory to save downloaded and converted
                 Hugging Face models.
             frozen: If True, the model parameters are frozen and not trained.
+            hard_concrete_config: Configuration for HardConcrete pruning.
+            use_dynamic_pruning: Whether to enable dynamic pruning.
+            dynamic_pruning_config: Configuration for dynamic pruning.
         """
         super().__init__()
 
@@ -109,6 +114,8 @@ class HuggingfaceFrontend(nn.Module):
             upstream_ckpt_path=converted_model_path,
             pruning_units=pruning_units,
             hard_concrete_config=hard_concrete_config,
+            use_dynamic_pruning=use_dynamic_pruning,
+            dynamic_pruning_config=dynamic_pruning_config
         )
 
         # 3. Freeze weights if required.
@@ -123,7 +130,8 @@ class HuggingfaceFrontend(nn.Module):
             self.upstream.train()
 
     def _build_upstream(
-        self, upstream_ckpt_path: str, pruning_units: str, hard_concrete_config: Optional[dict] = None
+        self, upstream_ckpt_path: str, pruning_units: str, hard_concrete_config: Optional[dict] = None, 
+        use_dynamic_pruning: bool = False, dynamic_pruning_config: Optional[dict] = None
     ) -> Tuple[nn.Module, Mapping[str, Any]]:
         """Builds the upstream model from a WeSpeaker format checkpoint.
 
@@ -131,6 +139,9 @@ class HuggingfaceFrontend(nn.Module):
             upstream_ckpt_path: Path to the WeSpeaker format checkpoint (.pth).
             pruning_units: A comma-separated string specifying parts of the
                 model to prune (e.g., "head,ffnlayer").
+            hard_concrete_config: Configuration for HardConcrete pruning.
+            use_dynamic_pruning: Whether to enable dynamic pruning.
+            dynamic_pruning_config: Configuration for dynamic pruning.
 
         Returns:
             A tuple containing:
@@ -159,9 +170,13 @@ class HuggingfaceFrontend(nn.Module):
 
         # Determine which model class to use based on the model name
         if "wavlm" in self.upstream_name.lower():
-            model = wavlm_model(**config, hard_concrete_config=hard_concrete_config)
+            model = wavlm_model(**config, hard_concrete_config=hard_concrete_config, 
+                              use_dynamic_pruning=use_dynamic_pruning, 
+                              dynamic_pruning_config=dynamic_pruning_config)
         else:
-            model = wav2vec2_model(**config, hard_concrete_config=hard_concrete_config)
+            model = wav2vec2_model(**config, hard_concrete_config=hard_concrete_config,
+                                 use_dynamic_pruning=use_dynamic_pruning, 
+                                 dynamic_pruning_config=dynamic_pruning_config)
         
         result = model.load_state_dict(ckpt['state_dict'], strict=False)
         if is_rank_zero():
@@ -286,10 +301,10 @@ def main():
     
     flops, macs, params  = get_model_profile(
         model=net.eval(),
-        input_shape=(1, 16000*4),  # 根据你模型的输入更改
+        input_shape=(1, 16000*4),  # Change according to your model input
         print_profile=True,
-        detailed=True,                 # 打印每一层
-        module_depth=-1,               # 控制打印深度
+        detailed=True,                 # Print each layer
+        module_depth=-1,               # Control print depth
     )
     print(f"flops: {flops}, macs; {macs}, Params: {params}")
 

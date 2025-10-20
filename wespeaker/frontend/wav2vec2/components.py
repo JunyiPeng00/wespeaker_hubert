@@ -14,6 +14,7 @@ from torch import nn, Tensor
 from torch.nn import Module, Parameter
 
 from .hardconcrete import HardConcrete
+from .dynamic_gate import DynamicStructuredGate
 from .pruning_utils import (
     prune_linear_layer,
     prune_conv1d_layer,
@@ -88,7 +89,7 @@ class ConvLayerBlock(Module):
         )
 
         if prune_conv_channels:
-            # 使用配置参数创建Hard Concrete
+            # Create Hard Concrete using config parameters
             config = hard_concrete_config or {}
             self.hard_concrete = HardConcrete(
                 n_in=out_channels, 
@@ -381,6 +382,8 @@ class SelfAttention(Module):
         prune_heads: bool = False,  # whether to prune attention heads
         prune_layer: bool = False,  # whether to prune entire attention layers
         hard_concrete_config: Optional[dict] = None,
+        use_dynamic_pruning: bool = False,  # whether to use dynamic pruning
+        dynamic_pruning_config: Optional[dict] = None,  # dynamic pruning configuration
     ):
         super().__init__()
 
@@ -397,30 +400,64 @@ class SelfAttention(Module):
         self.out_proj = nn.Linear(num_heads * head_dim, embed_dim, bias=True)
 
         if prune_heads:
-            # 使用配置参数创建Hard Concrete
-            config = hard_concrete_config or {}
-            self.hard_concrete_for_heads = HardConcrete(
-                n_in=num_heads, 
-                init_mean=config.get('init_mean', 0.01),
-                temperature=config.get('temperature', 1.0),
-                min_temperature=config.get('min_temperature', 0.1),
-                temperature_decay=config.get('temperature_decay', 0.95),
-                temperature_decay_freq=config.get('temperature_decay_freq', 100)
-            )
+            if use_dynamic_pruning:
+                # Use dynamic structured gate for heads
+                config = dynamic_pruning_config or {}
+                self.hard_concrete_for_heads = DynamicStructuredGate(
+                    n_in=num_heads,
+                    input_dim=embed_dim,  # Use embed_dim as input for dynamic gating
+                    gate_type=config.get('gate_type', 'hardconcrete'),
+                    hard_concrete_config=hard_concrete_config,
+                    predictor_config={
+                        'reduction_ratio': 16,
+                        **config.get('predictor_config', {}),
+                        'hidden_dim': min(embed_dim // 4, 64),  # Ensure reasonable hidden dim (override user config)
+                    },
+                    dynamic_weight=config.get('dynamic_weight', 0.5),
+                    use_input_gating=config.get('use_input_gating', True),
+                )
+            else:
+                # Use standard Hard Concrete
+                config = hard_concrete_config or {}
+                self.hard_concrete_for_heads = HardConcrete(
+                    n_in=num_heads, 
+                    init_mean=config.get('init_mean', 0.01),
+                    temperature=config.get('temperature', 1.0),
+                    min_temperature=config.get('min_temperature', 0.1),
+                    temperature_decay=config.get('temperature_decay', 0.95),
+                    temperature_decay_freq=config.get('temperature_decay_freq', 100)
+                )
         else:
             self.hard_concrete_for_heads = None
 
         if prune_layer:
-            # 使用配置参数创建Hard Concrete
-            config = hard_concrete_config or {}
-            self.hard_concrete_for_layer = HardConcrete(
-                n_in=1, 
-                init_mean=config.get('init_mean', 0.01),
-                temperature=config.get('temperature', 1.0),
-                min_temperature=config.get('min_temperature', 0.1),
-                temperature_decay=config.get('temperature_decay', 0.95),
-                temperature_decay_freq=config.get('temperature_decay_freq', 100)
-            )
+            if use_dynamic_pruning:
+                # Use dynamic structured gate for layer
+                config = dynamic_pruning_config or {}
+                self.hard_concrete_for_layer = DynamicStructuredGate(
+                    n_in=1,
+                    input_dim=embed_dim,  # Use embed_dim as input for dynamic gating
+                    gate_type=config.get('gate_type', 'hardconcrete'),
+                    hard_concrete_config=hard_concrete_config,
+                    predictor_config={
+                        'reduction_ratio': 16,
+                        **config.get('predictor_config', {}),
+                        'hidden_dim': min(embed_dim // 4, 64),  # Ensure reasonable hidden dim (override user config)
+                    },
+                    dynamic_weight=config.get('dynamic_weight', 0.5),
+                    use_input_gating=config.get('use_input_gating', True),
+                )
+            else:
+                # Use standard Hard Concrete
+                config = hard_concrete_config or {}
+                self.hard_concrete_for_layer = HardConcrete(
+                    n_in=1, 
+                    init_mean=config.get('init_mean', 0.01),
+                    temperature=config.get('temperature', 1.0),
+                    min_temperature=config.get('min_temperature', 0.1),
+                    temperature_decay=config.get('temperature_decay', 0.95),
+                    temperature_decay_freq=config.get('temperature_decay_freq', 100)
+                )
         else:
             self.hard_concrete_for_layer = None
 
@@ -471,16 +508,34 @@ class SelfAttention(Module):
         output = weights @ v  # B, nH, L, Hd
 
         if self.hard_concrete_for_heads is not None:
-            head_mask = self.hard_concrete_for_heads(current_iter)  # (nH,)
-            output = output * head_mask.unsqueeze(-1).unsqueeze(-1)
+            # For dynamic pruning, pass input x for gating
+            if hasattr(self.hard_concrete_for_heads, 'use_input_gating') and self.hard_concrete_for_heads.use_input_gating:
+                head_mask = self.hard_concrete_for_heads(x, current_iter)  # (B, nH,) or (nH,)
+            else:
+                head_mask = self.hard_concrete_for_heads(current_iter)  # (nH,)
+            
+            # Handle both batch and non-batch masks
+            if head_mask.dim() == 2:  # (B, nH,)
+                output = output * head_mask.unsqueeze(-1).unsqueeze(-1)  # Broadcast to (B, nH, L, Hd)
+            else:  # (nH,)
+                output = output * head_mask.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)  # Broadcast to (B, nH, L, Hd)
 
         output = output.transpose(2, 1).reshape(batch_size, length, self.num_heads * self.head_dim)
 
         output = self.out_proj(output)
 
         if self.hard_concrete_for_layer is not None:
-            layer_mask = self.hard_concrete_for_layer(current_iter) # (1,)
-            output = output * layer_mask
+            # For dynamic pruning, pass input x for gating
+            if hasattr(self.hard_concrete_for_layer, 'use_input_gating') and self.hard_concrete_for_layer.use_input_gating:
+                layer_mask = self.hard_concrete_for_layer(x, current_iter) # (B, 1,) or (1,)
+            else:
+                layer_mask = self.hard_concrete_for_layer(current_iter) # (1,)
+            
+            # Handle both batch and non-batch masks
+            if layer_mask.dim() == 2:  # (B, 1,)
+                output = output * layer_mask.unsqueeze(-1)  # Broadcast to (B, L, embed_dim)
+            else:  # (1,)
+                output = output * layer_mask.unsqueeze(0).unsqueeze(-1)  # Broadcast to (B, L, embed_dim)
 
         return output, None  # Necessary for compatibility with WavLMSelAttention
 
@@ -578,6 +633,8 @@ class WavLMSelfAttention(SelfAttention):
         prune_heads: bool = False,
         prune_layer: bool = False,
         hard_concrete_config: Optional[dict] = None,
+        use_dynamic_pruning: bool = False,
+        dynamic_pruning_config: Optional[dict] = None,
     ):
         self.total_num_heads = total_num_heads
         if remaining_heads is None:
@@ -587,7 +644,7 @@ class WavLMSelfAttention(SelfAttention):
         
         self.head_dim = embed_dim // total_num_heads
 
-        super().__init__(embed_dim, len(self.remaining_heads), self.head_dim, dropout, prune_heads, prune_layer, hard_concrete_config)
+        super().__init__(embed_dim, len(self.remaining_heads), self.head_dim, dropout, prune_heads, prune_layer, hard_concrete_config, use_dynamic_pruning, dynamic_pruning_config)
 
         self.has_relative_attention_bias = has_relative_attention_bias
         self.num_buckets = num_buckets
@@ -793,6 +850,8 @@ class FeedForward(Module):
         prune_intermediate: bool = False,
         prune_layer: bool = False,
         hard_concrete_config: Optional[dict] = None,
+        use_dynamic_pruning: bool = False,  # whether to use dynamic pruning
+        dynamic_pruning_config: Optional[dict] = None,  # dynamic pruning configuration
     ):
         super().__init__()
         self.intermediate_dense = nn.Linear(io_features, intermediate_features)
@@ -801,30 +860,64 @@ class FeedForward(Module):
         self.output_dropout = nn.Dropout(output_dropout)
 
         if prune_intermediate:
-            # 使用配置参数创建Hard Concrete
-            config = hard_concrete_config or {}
-            self.hard_concrete_for_intermediate = HardConcrete(
-                n_in=intermediate_features, 
-                init_mean=config.get('init_mean', 0.5),
-                temperature=config.get('temperature', 1.0),
-                min_temperature=config.get('min_temperature', 0.1),
-                temperature_decay=config.get('temperature_decay', 0.95),
-                temperature_decay_freq=config.get('temperature_decay_freq', 100)
-            )
+            if use_dynamic_pruning:
+                # Use dynamic structured gate for intermediate features
+                config = dynamic_pruning_config or {}
+                self.hard_concrete_for_intermediate = DynamicStructuredGate(
+                    n_in=intermediate_features,
+                    input_dim=io_features,  # Use input features for dynamic gating
+                    gate_type=config.get('gate_type', 'hardconcrete'),
+                    hard_concrete_config=hard_concrete_config,
+                    predictor_config={
+                        'reduction_ratio': 16,
+                        **config.get('predictor_config', {}),
+                        'hidden_dim': min(io_features // 4, 64),  # Ensure reasonable hidden dim (override user config)
+                    },
+                    dynamic_weight=config.get('dynamic_weight', 0.5),
+                    use_input_gating=config.get('use_input_gating', True),
+                )
+            else:
+                # Use standard Hard Concrete
+                config = hard_concrete_config or {}
+                self.hard_concrete_for_intermediate = HardConcrete(
+                    n_in=intermediate_features, 
+                    init_mean=config.get('init_mean', 0.5),
+                    temperature=config.get('temperature', 1.0),
+                    min_temperature=config.get('min_temperature', 0.1),
+                    temperature_decay=config.get('temperature_decay', 0.95),
+                    temperature_decay_freq=config.get('temperature_decay_freq', 100)
+                )
         else:
             self.hard_concrete_for_intermediate = None
         
         if prune_layer:
-            # 使用配置参数创建Hard Concrete
-            config = hard_concrete_config or {}
-            self.hard_concrete_for_layer = HardConcrete(
-                n_in=1, 
-                init_mean=config.get('init_mean', 0.01),
-                temperature=config.get('temperature', 1.0),
-                min_temperature=config.get('min_temperature', 0.1),
-                temperature_decay=config.get('temperature_decay', 0.95),
-                temperature_decay_freq=config.get('temperature_decay_freq', 100)
-            )
+            if use_dynamic_pruning:
+                # Use dynamic structured gate for layer
+                config = dynamic_pruning_config or {}
+                self.hard_concrete_for_layer = DynamicStructuredGate(
+                    n_in=1,
+                    input_dim=io_features,  # Use input features for dynamic gating
+                    gate_type=config.get('gate_type', 'hardconcrete'),
+                    hard_concrete_config=hard_concrete_config,
+                    predictor_config={
+                        'reduction_ratio': 16,
+                        **config.get('predictor_config', {}),
+                        'hidden_dim': min(io_features // 4, 64),  # Ensure reasonable hidden dim (override user config)
+                    },
+                    dynamic_weight=config.get('dynamic_weight', 0.5),
+                    use_input_gating=config.get('use_input_gating', True),
+                )
+            else:
+                # Use standard Hard Concrete
+                config = hard_concrete_config or {}
+                self.hard_concrete_for_layer = HardConcrete(
+                    n_in=1, 
+                    init_mean=config.get('init_mean', 0.01),
+                    temperature=config.get('temperature', 1.0),
+                    min_temperature=config.get('min_temperature', 0.1),
+                    temperature_decay=config.get('temperature_decay', 0.95),
+                    temperature_decay_freq=config.get('temperature_decay_freq', 100)
+                )
         else:
             self.hard_concrete_for_layer = None
 
@@ -836,20 +929,41 @@ class FeedForward(Module):
         Returns:
             x (Tensor): shape: `(batch, sequence_length, io_features)`
         """
+        # Store original input for dynamic gating
+        original_input = x
+        
         x = self.intermediate_dense(x)
         x = torch.nn.functional.gelu(x)
         x = self.intermediate_dropout(x)
 
         if self.hard_concrete_for_intermediate is not None:
-            intermediate_mask = self.hard_concrete_for_intermediate(current_iter)   # (intermediate_features,)
-            x = x * intermediate_mask
+            # For dynamic pruning, pass original input for gating
+            if hasattr(self.hard_concrete_for_intermediate, 'use_input_gating') and self.hard_concrete_for_intermediate.use_input_gating:
+                intermediate_mask = self.hard_concrete_for_intermediate(original_input, current_iter)   # (B, intermediate_features,) or (intermediate_features,)
+            else:
+                intermediate_mask = self.hard_concrete_for_intermediate(current_iter)   # (intermediate_features,)
+            
+            # Handle both batch and non-batch masks
+            if intermediate_mask.dim() == 2:  # (B, intermediate_features,)
+                x = x * intermediate_mask.unsqueeze(1)  # Broadcast to (B, L, intermediate_features)
+            else:  # (intermediate_features,)
+                x = x * intermediate_mask.unsqueeze(0).unsqueeze(0)  # Broadcast to (B, L, intermediate_features)
 
         x = self.output_dense(x)
         x = self.output_dropout(x)
 
         if self.hard_concrete_for_layer is not None:
-            layer_mask = self.hard_concrete_for_layer(current_iter)     # (1,)
-            x = x * layer_mask
+            # For dynamic pruning, pass original input for gating
+            if hasattr(self.hard_concrete_for_layer, 'use_input_gating') and self.hard_concrete_for_layer.use_input_gating:
+                layer_mask = self.hard_concrete_for_layer(original_input, current_iter)     # (B, 1,) or (1,)
+            else:
+                layer_mask = self.hard_concrete_for_layer(current_iter)     # (1,)
+            
+            # Handle both batch and non-batch masks
+            if layer_mask.dim() == 2:  # (B, 1,)
+                x = x * layer_mask.unsqueeze(1)  # Broadcast to (B, L, io_features)
+            else:  # (1,)
+                x = x * layer_mask.unsqueeze(0).unsqueeze(0)  # Broadcast to (B, L, io_features)
 
         return x
     
@@ -1273,6 +1387,8 @@ def _get_encoder(
     prune_feed_forward_layer: bool = False,
     use_layerwise_prune: str = False,  # Added for Wav2Vec2 support
     hard_concrete_config: Optional[dict] = None,
+    use_dynamic_pruning: bool = False,
+    dynamic_pruning_config: Optional[dict] = None,
 ) -> Encoder:
     """
     Args:
@@ -1412,6 +1528,8 @@ def _get_encoder(
                 prune_heads=prune_attention_heads,
                 prune_layer=prune_attention_layer,
                 hard_concrete_config=hard_concrete_config,
+                use_dynamic_pruning=use_dynamic_pruning,
+                dynamic_pruning_config=dynamic_pruning_config,
             )
         else:
             attention = None
@@ -1424,6 +1542,8 @@ def _get_encoder(
                 prune_intermediate=prune_feed_forward_intermediate,
                 prune_layer=prune_feed_forward_layer,
                 hard_concrete_config=hard_concrete_config,
+                use_dynamic_pruning=use_dynamic_pruning,
+                dynamic_pruning_config=dynamic_pruning_config,
             )
         else:
             feed_forward = None
@@ -1471,6 +1591,8 @@ def _get_wavlm_encoder(
     prune_feed_forward_layer: bool = False,
     use_layerwise_prune: str = False,    # e.g. 5-12
     hard_concrete_config: Optional[dict] = None,
+    use_dynamic_pruning: bool = False,
+    dynamic_pruning_config: Optional[dict] = None,
 ) -> Encoder:
     """
     Construct encoder for WavLM model :cite:`chen2022wavlm`. The structure of the encoder and most of the argments are
@@ -1529,6 +1651,8 @@ def _get_wavlm_encoder(
                 prune_heads=prune_attention_heads,
                 prune_layer=prune_attention_layer,
                 hard_concrete_config=hard_concrete_config,
+                use_dynamic_pruning=use_dynamic_pruning,
+                dynamic_pruning_config=dynamic_pruning_config,
             )
         else:
             attention = None
@@ -1541,6 +1665,8 @@ def _get_wavlm_encoder(
                 prune_intermediate=prune_feed_forward_intermediate,
                 prune_layer=prune_feed_forward_layer,
                 hard_concrete_config=hard_concrete_config,
+                use_dynamic_pruning=use_dynamic_pruning,
+                dynamic_pruning_config=dynamic_pruning_config,
             )
         else:
             feed_forward = None

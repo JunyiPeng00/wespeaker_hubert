@@ -27,6 +27,7 @@ def make_pruning_param_groups(
     model: torch.nn.Module,
     cls_lr: float = 2e-4,
     reg_lr: float | None = 2e-2,
+    use_dynamic_pruning: bool = False,
 ) -> tuple[list[dict[str, Any]], tuple[nn.Parameter, nn.Parameter]]:
     """Creates optimizer parameter groups for a dual-formulation pruning algorithm.
 
@@ -44,6 +45,7 @@ def make_pruning_param_groups(
         cls_lr: The learning rate for the main model parameters.
         reg_lr: The learning rate for the regularization parameters, which
             include 'log_alpha' and the Lagrange multipliers.
+        use_dynamic_pruning: Whether to use dynamic pruning (affects parameter grouping).
 
     Returns:
         A tuple containing:
@@ -52,9 +54,20 @@ def make_pruning_param_groups(
         - A tuple containing the two Lagrange multiplier parameters (lambda1,
           lambda2) used in the regularization loss.
     """
-    main_params = [
-        p for n, p in model.named_parameters() if 'log_alpha' not in n
-    ]
+    # Separate parameters for different optimization groups
+    main_params = []
+    log_alpha_params = []
+    dynamic_predictor_params = []
+    
+    for n, p in model.named_parameters():
+        if 'log_alpha' in n:
+            log_alpha_params.append(p)
+        elif use_dynamic_pruning and 'input_predictor' in n:
+            # Dynamic predictor parameters use different learning rate
+            dynamic_predictor_params.append(p)
+        else:
+            main_params.append(p)
+    
     lambda1 = nn.Parameter(torch.tensor(0.0))
     lambda2 = nn.Parameter(torch.tensor(0.0))
 
@@ -63,25 +76,30 @@ def make_pruning_param_groups(
     ]
 
     if reg_lr is not None:
-        log_alpha_params = [
-            p for n, p in model.named_parameters() if 'log_alpha' in n
-        ]
-        param_groups.extend([
-            {
+        if log_alpha_params:
+            param_groups.append({
                 'params': log_alpha_params,
                 'lr': reg_lr,
                 'weight_decay': 0.0,
                 'name': 'log_alpha',
-            },
-            {
-                # Use a negative learning rate to perform gradient *ascent* on the
-                # dual variables (lambdas), which maximizes the dual function.
-                'params': [lambda1, lambda2],
-                'lr': -reg_lr,
+            })
+        
+        if dynamic_predictor_params:
+            param_groups.append({
+                'params': dynamic_predictor_params,
+                'lr': reg_lr * 0.1,  # Lower learning rate for predictors
                 'weight_decay': 0.0,
-                'name': 'lambda',
-            },
-        ])
+                'name': 'dynamic_predictor',
+            })
+        
+        param_groups.append({
+            # Use a negative learning rate to perform gradient *ascent* on the
+            # dual variables (lambdas), which maximizes the dual function.
+            'params': [lambda1, lambda2],
+            'lr': -reg_lr,
+            'weight_decay': 0.0,
+            'name': 'lambda',
+        })
 
     return param_groups, (lambda1, lambda2)
 
@@ -239,6 +257,42 @@ def get_learning_rate_with_plateau_decay(
         plateau_progress = (current_iter - plateau_start_iter) / (total_iters - plateau_start_iter)
         plateau_lr = initial_lr * (decay_factor + (1.0 - decay_factor) * (1.0 - plateau_progress))
         return max(plateau_lr, min_lr)
+
+
+def compute_dynamic_pruning_loss(model: torch.nn.Module, l1_weight: float = 1e-4) -> torch.Tensor:
+    """Compute L1 regularization loss for dynamic pruning predictors.
+    
+    This function computes the L1 regularization loss for all dynamic pruning
+    predictors in the model to encourage sparsity in the gating decisions.
+    
+    Args:
+        model: The PyTorch model containing dynamic pruning components.
+        l1_weight: Weight for L1 regularization loss.
+    
+    Returns:
+        L1 regularization loss tensor.
+    """
+    total_l1_loss = 0.0
+    
+    for module in model.modules():
+        # Check if module has dynamic pruning loss method
+        if hasattr(module, 'get_dynamic_regularization_loss'):
+            total_l1_loss += module.get_dynamic_regularization_loss()
+    
+    return l1_weight * total_l1_loss
+
+
+def set_dynamic_pruning_mode(model: torch.nn.Module, dynamic: bool = True) -> None:
+    """Set dynamic pruning mode for all dynamic gates in the model.
+    
+    Args:
+        model: The PyTorch model containing dynamic pruning components.
+        dynamic: If True, enable dynamic execution. If False, use static masks.
+    """
+    for module in model.modules():
+        # Check if module has set_mode method (DynamicStructuredGate)
+        if hasattr(module, 'set_mode'):
+            module.set_mode(dynamic)
 
 
 # SWA functionality removed per user request

@@ -136,7 +136,7 @@ def train(config='conf/config.yaml', **kwargs):
     frontend_type = configs['dataset_args'].get('frontend', 'fbank')
     if frontend_type != "fbank":
         frontend_args = frontend_type + "_args"
-        # 准备hard_concrete_config参数
+        # Prepare hard_concrete_config parameters
         hard_concrete_config = {
             'init_mean': configs.get('init_mean', 0.01),
             'temperature': configs.get('temperature', 1.0),
@@ -254,10 +254,13 @@ def train(config='conf/config.yaml', **kwargs):
             except Exception:
                 configs['original_ssl_num_params'] = 1.0
         reg_lr = configs.get('initial_reg_lr', 2e-2)
+        # Enable separate LR for dynamic input predictors when dynamic pruning is used
+        use_dynamic_pruning = configs.get('use_dynamic_pruning', False)
         p_groups, lambda_pair = make_pruning_param_groups(
             ddp_model,
             cls_lr=configs['optimizer_args']['lr'],
             reg_lr=reg_lr,
+            use_dynamic_pruning=use_dynamic_pruning,
         )
         pg_main   = [pg for pg in p_groups if pg.get('name') == 'main']
         pg_others = [pg for pg in p_groups if pg.get('name') != 'main']

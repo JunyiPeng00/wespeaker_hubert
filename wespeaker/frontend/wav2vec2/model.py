@@ -218,7 +218,9 @@ def wav2vec2_model_original(
     encoder_prune_feed_forward_intermediate: bool = False,
     encoder_prune_feed_forward_layer: bool = False,
     use_layerwise_prune: str = False,
-    hard_concrete_config: Optional[dict] = None
+    hard_concrete_config: Optional[dict] = None,
+    use_dynamic_pruning: bool = False,
+    dynamic_pruning_config: Optional[dict] = None
 ) -> Wav2Vec2Model:
     """Builds custom :class:`~torchaudio.models.Wav2Vec2Model`.
 
@@ -371,6 +373,8 @@ def wav2vec2_model_original(
         prune_feed_forward_intermediate=encoder_prune_feed_forward_intermediate,
         prune_feed_forward_layer=encoder_prune_feed_forward_layer,
         hard_concrete_config=hard_concrete_config,
+        use_dynamic_pruning=use_dynamic_pruning,
+        dynamic_pruning_config=dynamic_pruning_config,
     )
     aux = None
     if aux_num_out is not None:
@@ -779,7 +783,9 @@ def wavlm_model(
     encoder_prune_feed_forward_intermediate: bool = False,
     encoder_prune_feed_forward_layer: bool = False,
     use_layerwise_prune: str = False,
-    hard_concrete_config: Optional[dict] = None
+    hard_concrete_config: Optional[dict] = None,
+    use_dynamic_pruning: bool = False,
+    dynamic_pruning_config: Optional[dict] = None
 ) -> Wav2Vec2Model:
     """Builds custom WaveLM model :cite:`chen2022wavlm`. The architecture is compatible
     with Wav2Vec2 model :cite:`baevski2020wav2vec`, and so the output object is
@@ -876,7 +882,9 @@ def wavlm_model(
         prune_feed_forward_intermediate=encoder_prune_feed_forward_intermediate,
         prune_feed_forward_layer=encoder_prune_feed_forward_layer,
         use_layerwise_prune=use_layerwise_prune,
-        hard_concrete_config=hard_concrete_config
+        hard_concrete_config=hard_concrete_config,
+        use_dynamic_pruning=use_dynamic_pruning,
+        dynamic_pruning_config=dynamic_pruning_config
     )
     aux = None
     if aux_num_out is not None:
