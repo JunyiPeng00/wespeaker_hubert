@@ -136,7 +136,7 @@ class Wav2Vec2Model(Module):
                 encoder_size = self.encoder.get_num_params(encoder_in_features, lengths, encoder_features)
         else:
             # Static calculation without input
-            encoder_size = self.encoder.get_num_params()
+            encoder_size = self.encoder.get_num_params(encoder_in_features)
         return feature_extractor_size + encoder_size
     
     def prune(self):

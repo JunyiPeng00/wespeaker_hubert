@@ -40,6 +40,7 @@ dataset_args:
       name: "wavlm_base_plus"
       path_or_url: "/scratch/project_465002053/junyi/sv/wespeaker_dev/wespeaker_hubert/examples/voxceleb/v4_pruning/convert/wavlm_base_plus.hf.pth"
       pruning_units: "conv,head,attlayer,interm,ffnlayer"
+      dynamic_pruning_units: ""
     frozen: False
     frame_shift: 20
     frame_length: 20
@@ -100,7 +101,17 @@ sparsity_warmup_epochs: 8
 sparsity_schedule: "cosine"  # Options: linear, cosine, exponential, sigmoid
 min_sparsity: 0.0  # Initial sparsity level
 
-# HardConcrete temperature annealing: gradually sharpens pruning decisions
-min_temperature: 0.1           # Minimum temperature (sharper decisions)
-temperature_decay: 0.95        # Temperature decay factor per decay step
-temperature_decay_freq: 100    # Decay temperature every 100 training iterations
+# HardConcrete configuration
+# For 70% target sparsity, init_mean should be set to ~0.7
+hard_concrete_config:
+  init_mean: 0.7              # Drop 70% of units → 70% sparsity (CRITICAL FIX!)
+  init_std: 0.01              # Small variance for stable initialization
+  temperature: 0.67           # Initial temperature (2/3)
+  min_temperature: 0.1        # Minimum temperature (sharper decisions)
+  temperature_decay: 0.95     # Temperature decay factor per decay step
+  temperature_decay_freq: 100 # Decay temperature every 100 training iterations
+
+# Legacy parameters (kept for backward compatibility, overridden by hard_concrete_config)
+min_temperature: 0.1           
+temperature_decay: 0.95        
+temperature_decay_freq: 100

@@ -137,13 +137,35 @@ def train(config='conf/config.yaml', **kwargs):
     if frontend_type != "fbank":
         frontend_args = frontend_type + "_args"
         # Prepare hard_concrete_config parameters
-        hard_concrete_config = {
-            'init_mean': configs.get('init_mean', 0.01),
-            'temperature': configs.get('temperature', 1.0),
-            'min_temperature': configs.get('min_temperature', 0.1),
-            'temperature_decay': configs.get('temperature_decay', 0.95),
-            'temperature_decay_freq': configs.get('temperature_decay_freq', 100)
-        }
+        # First check if hard_concrete_config is provided as a nested dict (new format)
+        if 'hard_concrete_config' in configs:
+            # Use nested config (recommended format)
+            hard_concrete_config = configs['hard_concrete_config'].copy()
+            # Ensure all required keys have defaults
+            hard_concrete_config.setdefault('init_mean', 0.01)
+            hard_concrete_config.setdefault('init_std', 0.01)
+            hard_concrete_config.setdefault('temperature', 1.0)
+            hard_concrete_config.setdefault('min_temperature', 0.1)
+            hard_concrete_config.setdefault('temperature_decay', 0.95)
+            hard_concrete_config.setdefault('temperature_decay_freq', 100)
+        else:
+            # Backward compatibility: read from top-level config (legacy format)
+            hard_concrete_config = {
+                'init_mean': configs.get('init_mean', 0.01),
+                'init_std': configs.get('init_std', 0.01),
+                'temperature': configs.get('temperature', 1.0),
+                'min_temperature': configs.get('min_temperature', 0.1),
+                'temperature_decay': configs.get('temperature_decay', 0.95),
+                'temperature_decay_freq': configs.get('temperature_decay_freq', 100)
+            }
+        
+        # Log hard_concrete_config for debugging
+        if rank == 0:
+            logger.info(f"<== HardConcrete Configuration ==>")
+            logger.info(f"init_mean: {hard_concrete_config['init_mean']} (DROP rate, target sparsity ~{hard_concrete_config['init_mean']*100:.0f}%)")
+            logger.info(f"init_std: {hard_concrete_config.get('init_std', 0.01)}")
+            logger.info(f"temperature: {hard_concrete_config['temperature']}")
+            logger.info(f"min_temperature: {hard_concrete_config['min_temperature']}")
         
         # Prepare dynamic pruning parameters
         use_dynamic_pruning = configs.get('use_dynamic_pruning', False)

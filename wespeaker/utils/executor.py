@@ -136,54 +136,45 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
                 )
 
             # Expected current params; rely on frontend for pruning stats when available
-            try:
+            # try:
                 # For dynamic pruning, try to get effective params with input features
-                if use_dynamic_pruning and hasattr(model.module.frontend, 'get_num_params'):
-                    # Check if get_num_params accepts input parameter
-                    import inspect
-                    sig = inspect.signature(model.module.frontend.get_num_params)
-                    if 'x' in sig.parameters:
-                        # Use current batch features for dynamic gating
-                        cur_params = model.module.frontend.get_num_params(features)
-                        # Debug: log dynamic params every 100 batches
-                        if i % 100 == 0:
-                            logger.info(f"Dynamic pruning: using features for params calculation, cur_params={cur_params:.0f}")
-                            # Also log the sparsity
-                            sparsity = 1.0 - (cur_params / orig_params)
-                            logger.info(f"Dynamic pruning: current sparsity={sparsity:.4f}")
-                    else:
-                        cur_params = model.module.frontend.get_num_params()
-                        # Debug: log static params every 100 batches
-                        if i % 100 == 0:
-                            logger.info(f"Dynamic pruning: using static params calculation, cur_params={cur_params:.0f}")
+            if use_dynamic_pruning and hasattr(model.module.frontend, 'get_num_params'):
+                # Check if get_num_params accepts input parameter
+                import inspect
+                sig = inspect.signature(model.module.frontend.get_num_params)
+                if 'x' in sig.parameters:
+                    # Use current batch features for dynamic gating
+                    cur_params = model.module.frontend.get_num_params(wavs)
+                    print(f"cur_params: {cur_params}")
+                    # Debug: log dynamic params every 100 batches
+                    # if i % 100 == 0:
+                        # logger.info(f"Dynamic pruning: using features for params calculation, cur_params={cur_params:.0f}")
+                        # Also log the sparsity
+                        # sparsity = 1.0 - (cur_params / orig_params)
+                        # logger.info(f"Dynamic pruning: current sparsity={sparsity:.4f}")
                 else:
                     cur_params = model.module.frontend.get_num_params()
-            except Exception as e:
-                try:
-                    # For dynamic pruning, try to get effective params with input features
-                    if use_dynamic_pruning and hasattr(model.module.frontend, 'get_num_params'):
-                        import inspect
-                        sig = inspect.signature(model.module.frontend.get_num_params)
-                        if 'x' in sig.parameters:
-                            if i % 10 == 0:
-                                logger.info(f"Debug: features shape={wavs.shape}")
-                                logger.info(f"Debug: features dtype={wavs.dtype}")
-                            cur_params = model.module.frontend.get_num_params(wavs)
-                            # Debug: log dynamic params every 100 batches
-                            if i % 10 == 0:
-                                logger.info(f"Dynamic pruning (fallback): using features for params calculation, cur_params={cur_params:.0f}")
-                        else:
-                            cur_params = model.module.frontend.get_num_params()
-                            # Debug: log static params every 100 batches
-                            if i % 10 == 0:
-                                logger.info(f"Dynamic pruning (fallback): using static params calculation, cur_params={cur_params:.0f}")
-                    else:
-                        cur_params = model.frontend.get_num_params()
-                except Exception as e2:
-                    cur_params = orig_params
-                    # Debug: log fallback params every 100 batches
+                    # Debug: log static params every 100 batches
                     if i % 100 == 0:
-                        logger.info(f"Dynamic pruning: using fallback params, cur_params={cur_params:.0f}, error={e2}")
+                        logger.info(f"Dynamic pruning: using static params calculation, cur_params={cur_params:.0f}")
+            else:
+                cur_params = model.module.frontend.get_num_params()
+                # print(f"cur_params: {cur_params}")
+            # except Exception as e:
+            #     try:
+            #         # For dynamic pruning, try to get effective params with input features
+            #         if use_dynamic_pruning and hasattr(model.module.frontend, 'get_num_params'):
+            #             import inspect
+            #             sig = inspect.signature(model.module.frontend.get_num_params)
+            #             if 'x' in sig.parameters:
+            #                 cur_params = model.module.frontend.get_num_params(wavs)
+            #             else:
+            #                 cur_params = model.module.frontend.get_num_params()
+            #         else:
+            #             cur_params = model.frontend.get_num_params()
+            #     except Exception as e2:
+            #         cur_params = orig_params
+                    # Debug: log fallback params every 100 batches
 
             prune_reg, exp_sp = pruning_loss(cur_params, orig_params, target_sp_cur, l1, l2)
             total_loss = cls_loss + prune_reg

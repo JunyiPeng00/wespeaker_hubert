@@ -62,12 +62,12 @@ def make_pruning_param_groups(
     for n, p in model.named_parameters():
         if 'log_alpha' in n:
             log_alpha_params.append(p)
+            
         elif use_dynamic_pruning and 'input_predictor' in n:
             # Dynamic predictor parameters use different learning rate
             dynamic_predictor_params.append(p)
         else:
             main_params.append(p)
-    
     lambda1 = nn.Parameter(torch.tensor(0.0))
     lambda2 = nn.Parameter(torch.tensor(0.0))
 
