@@ -90,35 +90,19 @@ class ConvLayerBlock(Module):
             bias=bias,
         )
 
-        # Create pruning gate for conv channels if either static or dynamic pruning is enabled
-        if prune_conv_channels or use_dynamic_pruning:
-            if use_dynamic_pruning:
-                # Use dynamic structured gate for conv channels
-                config = dynamic_pruning_config or {}
-                self.hard_concrete = DynamicStructuredGate(
-                    n_in=out_channels,
-                    input_dim=out_channels,  # Use output channels as input for dynamic gating
-                    gate_type=config.get('gate_type', 'hardconcrete'),
-                    hard_concrete_config=hard_concrete_config,
-                    predictor_config={
-                        'reduction_ratio': config.get('predictor_config', {}).get('reduction_ratio', 16),
-                        **config.get('predictor_config', {}),
-                        'hidden_dim': min(out_channels // 4, 64),  # Ensure reasonable hidden dim
-                    },
-                    dynamic_weight=config.get('dynamic_weight', 0.5),
-                    use_input_gating=config.get('use_input_gating', True),
-                )
-            else:
-                # Use standard Hard Concrete
-                config = hard_concrete_config or {}
-                self.hard_concrete = HardConcrete(
-                    n_in=out_channels, 
-                    init_mean=config.get('init_mean', 0.01),
-                    temperature=config.get('temperature', 1.0),
-                    min_temperature=config.get('min_temperature', 0.1),
-                    temperature_decay=config.get('temperature_decay', 0.95),
-                    temperature_decay_freq=config.get('temperature_decay_freq', 100)
-                )
+        # Create pruning gate for conv channels - CNN Encoder uses STATIC pruning only
+        # This ensures stable sparsity calculation and avoids dynamic pruning issues
+        if prune_conv_channels:
+            # Always use standard Hard Concrete for CNN layers (static pruning only)
+            config = hard_concrete_config or {}
+            self.hard_concrete = HardConcrete(
+                n_in=out_channels, 
+                init_mean=config.get('init_mean', 0.01),
+                temperature=config.get('temperature', 1.0),
+                min_temperature=config.get('min_temperature', 0.1),
+                temperature_decay=config.get('temperature_decay', 0.95),
+                temperature_decay_freq=config.get('temperature_decay_freq', 100)
+            )
         else:
             self.hard_concrete = None
 
@@ -143,14 +127,8 @@ class ConvLayerBlock(Module):
         x = nn.functional.gelu(x)
 
         if self.hard_concrete is not None:
-            # For dynamic pruning, pass the conv output as input to the gate
-            if hasattr(self.hard_concrete, 'use_input_gating') and self.hard_concrete.use_input_gating:
-                # Use mean pooling across time dimension for dynamic gating
-                conv_mean = x.mean(dim=-1)  # (batch, out_channels)
-                channel_mask = self.hard_concrete(conv_mean, current_iter)
-            else:
-                # Static pruning
-                channel_mask = self.hard_concrete(current_iter)
+            # Static pruning only for CNN layers
+            channel_mask = self.hard_concrete(current_iter)
             x = x * channel_mask.unsqueeze(-1)
 
         if length is not None:
@@ -161,6 +139,7 @@ class ConvLayerBlock(Module):
     
     def get_num_params_and_out_channels(self, in_channels):
         if self.hard_concrete is not None:
+            # Static pruning only - use deterministic L0 norm
             out_channels = self.hard_concrete.l0_norm()
         else:
             out_channels = self.conv.out_channels
@@ -609,6 +588,21 @@ class SelfAttention(Module):
             else:
                 layer_keep_ratio = self.hard_concrete_for_layer.l0_norm()
             num_params *= layer_keep_ratio
+        
+        # Add parameters from pruning gates (HardConcrete and InputPredictor)
+        if self.hard_concrete_for_heads is not None:
+            # HardConcrete parameters: log_alpha (n_in parameters)
+            num_params += self.hard_concrete_for_heads.n_in
+            # InputPredictor parameters if using dynamic pruning
+            if hasattr(self.hard_concrete_for_heads, 'input_predictor') and self.hard_concrete_for_heads.input_predictor is not None:
+                num_params += sum(p.numel() for p in self.hard_concrete_for_heads.input_predictor.parameters())
+        
+        if self.hard_concrete_for_layer is not None:
+            # HardConcrete parameters: log_alpha (n_in parameters)
+            num_params += self.hard_concrete_for_layer.n_in
+            # InputPredictor parameters if using dynamic pruning
+            if hasattr(self.hard_concrete_for_layer, 'input_predictor') and self.hard_concrete_for_layer.input_predictor is not None:
+                num_params += sum(p.numel() for p in self.hard_concrete_for_layer.input_predictor.parameters())
         
         return num_params
 
@@ -1072,6 +1066,21 @@ class FeedForward(Module):
                 layer_keep_ratio = self.hard_concrete_for_layer.l0_norm()
             num_params *= layer_keep_ratio
         
+        # Add parameters from pruning gates (HardConcrete and InputPredictor)
+        if self.hard_concrete_for_intermediate is not None:
+            # HardConcrete parameters: log_alpha (n_in parameters)
+            num_params += self.hard_concrete_for_intermediate.n_in
+            # InputPredictor parameters if using dynamic pruning
+            if hasattr(self.hard_concrete_for_intermediate, 'input_predictor') and self.hard_concrete_for_intermediate.input_predictor is not None:
+                num_params += sum(p.numel() for p in self.hard_concrete_for_intermediate.input_predictor.parameters())
+        
+        if self.hard_concrete_for_layer is not None:
+            # HardConcrete parameters: log_alpha (n_in parameters)
+            num_params += self.hard_concrete_for_layer.n_in
+            # InputPredictor parameters if using dynamic pruning
+            if hasattr(self.hard_concrete_for_layer, 'input_predictor') and self.hard_concrete_for_layer.input_predictor is not None:
+                num_params += sum(p.numel() for p in self.hard_concrete_for_layer.input_predictor.parameters())
+        
         return num_params
     
     def _get_layer_weight_bias(self, layer):
@@ -1220,10 +1229,28 @@ class EncoderLayer(Module):
             Expected number of parameters considering effective mask.
         """
         num_params = self.embed_dim * 2 * 2     # two layer norms
-        if self.attention is not None:
-            num_params += self.attention.get_num_params(x)
-        if self.feed_forward is not None:
-            num_params += self.feed_forward.get_num_params(x)
+        if x is not None:
+            residual = x
+            if self.attention is not None:
+                if self.layer_norm_first:
+                    x = self.layer_norm(x)
+                num_params += self.attention.get_num_params(x)
+                x, position_bias = self.attention( x, None, None, None, None)
+                x = residual + x
+
+            if self.layer_norm_first:
+                if self.feed_forward is not None:
+                    num_params += self.feed_forward.get_num_params(self.final_layer_norm(x))
+            else:
+                # NOTE: for post norm, the layer norms should always be applied even if the layers are pruned.
+                x = self.layer_norm(x)
+                if self.feed_forward is not None:
+                    num_params += self.feed_forward.get_num_params(x)
+        else:
+            if self.attention is not None:
+                num_params += self.attention.get_num_params()
+            if self.feed_forward is not None:
+                num_params += self.feed_forward.get_num_params()
         return num_params
 
 
@@ -1304,8 +1331,14 @@ class Transformer(Module):
         """
         # pos_conv_embed and layer_norm
         num_params = sum(p.numel() for p in self.pos_conv_embed.parameters()) + self.pos_conv_embed.embed_dim * 2
-        for layer in self.layers:
-            num_params += layer.get_num_params(x)
+        if x is not None:
+            x = self._preprocess(x)
+            for layer in self.layers:
+                num_params += layer.get_num_params(x)
+                x, _ = layer(x, None, None, None) 
+        else:
+            for layer in self.layers:
+                num_params += layer.get_num_params()
         return num_params
     
     def prune(self):
@@ -1380,7 +1413,7 @@ class Encoder(Module):
         # return [x] + interm
         return interm
     
-    def get_num_params(self, in_features, x: Optional[Tensor] = None):
+    def get_num_params(self, in_features, lengths: Optional[Tensor] = None, x: Optional[Tensor] = None):
         """Calculate the current model size considering dynamic pruning.
         
         Args:
@@ -1391,7 +1424,11 @@ class Encoder(Module):
             Expected number of parameters considering effective mask.
         """
         feature_projection_size = self.feature_projection.get_num_params(in_features)
-        transformer_size = self.transformer.get_num_params(x)
+        if x is not None:
+            x_processed, _ = self._preprocess(x, lengths)
+            transformer_size = self.transformer.get_num_params(x_processed)
+        else:
+            transformer_size = self.transformer.get_num_params()
         return feature_projection_size + transformer_size
     
     def prune(self, conv_out_index):
@@ -1478,8 +1515,9 @@ def _get_feature_extractor(
                 layer_norm=normalization,
                 prune_conv_channels=prune_conv_channels,
                 hard_concrete_config=hard_concrete_config,
-                use_dynamic_pruning=use_dynamic_pruning,
-                dynamic_pruning_config=dynamic_pruning_config,
+                # CNN Encoder uses static pruning only - ignore dynamic pruning parameters
+                use_dynamic_pruning=False,
+                dynamic_pruning_config=None,
             )
         )
         in_channels = out_channels

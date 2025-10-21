@@ -82,19 +82,15 @@ class InputPredictor(nn.Module):
         # Handle different input shapes
         if x.dim() > 2:
             # For 3D tensors (B, T, F), use global pooling
-            if self.use_global_pool:
-                # Global average pooling
-                x_pooled = x.mean(dim=1)  # (B, input_dim)
-            else:
-                # Use last timestep
-                x_pooled = x[:, -1, :]  # (B, input_dim)
+
+            x_pooled = x.mean(dim=1)  # (B, input_dim)
         else:
             x_pooled = x  # (B, input_dim)
         
         # Extract statistics
         if self.use_std:
             x_mean = x_pooled
-            x_std = torch.std(x_pooled, dim=-1, keepdim=True).expand_as(x_pooled)
+            x_std = torch.std(x, dim=1)
             features = torch.cat([x_mean, x_std], dim=-1)  # (B, input_dim * 2)
         else:
             features = x_pooled

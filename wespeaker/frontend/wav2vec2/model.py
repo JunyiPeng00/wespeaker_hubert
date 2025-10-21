@@ -133,7 +133,7 @@ class Wav2Vec2Model(Module):
                 lengths = torch.LongTensor([x.shape[1]]).repeat(x.shape[0]).to(x.device)
                 encoder_features, _ = self.feature_extractor(x, lengths)
                 print(f"Debug: encoder_features shape after feature_extractor: {encoder_features.shape}")
-                encoder_size = self.encoder.get_num_params(encoder_in_features, encoder_features)
+                encoder_size = self.encoder.get_num_params(encoder_in_features, lengths, encoder_features)
         else:
             # Static calculation without input
             encoder_size = self.encoder.get_num_params()
