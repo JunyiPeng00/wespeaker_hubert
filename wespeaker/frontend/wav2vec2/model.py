@@ -118,10 +118,25 @@ class Wav2Vec2Model(Module):
         # print(f'trans elapsed : {trans_end - trans_start}')
         return x, lengths
     
-    def get_num_params(self):
-        """Calculate the current size."""
+    def get_num_params(self, x: Optional[Tensor] = None):
+        """Calculate the current size considering dynamic pruning.
+        
+        Args:
+            x: Input tensor for dynamic gating computation.
+        
+        Returns:
+            Expected number of parameters considering effective mask.
+        """
         feature_extractor_size, encoder_in_features = self.feature_extractor.get_num_params_and_final_out_channels()
-        encoder_size = self.encoder.get_num_params(encoder_in_features)
+        if x is not None:
+            with torch.no_grad():
+                lengths = torch.LongTensor([x.shape[1]]).repeat(x.shape[0]).to(x.device)
+                encoder_features, _ = self.feature_extractor(x, lengths)
+                print(f"Debug: encoder_features shape after feature_extractor: {encoder_features.shape}")
+                encoder_size = self.encoder.get_num_params(encoder_in_features, encoder_features)
+        else:
+            # Static calculation without input
+            encoder_size = self.encoder.get_num_params()
         return feature_extractor_size + encoder_size
     
     def prune(self):

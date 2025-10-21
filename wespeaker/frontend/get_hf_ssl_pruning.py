@@ -271,9 +271,22 @@ class HuggingfaceFrontend(nn.Module):
         layer_reps = torch.stack(ssl_hiddens, dim=0).permute(1, 3, 2, 0)
         return layer_reps, None
 
-    def get_num_params(self) -> int:
-        """Returns the total number of parameters in the upstream model."""
-        return self.upstream.get_num_params()
+    def get_num_params(self, x: Optional[torch.Tensor] = None) -> int:
+        """Returns the total number of parameters in the upstream model considering dynamic pruning.
+        
+        Args:
+            x: Input tensor for dynamic gating computation.
+        
+        Returns:
+            Expected number of parameters considering effective mask.
+        """
+        # Check if upstream model supports dynamic pruning
+        import inspect
+        sig = inspect.signature(self.upstream.get_num_params)
+        if 'x' in sig.parameters:
+            return self.upstream.get_num_params(x)
+        else:
+            return self.upstream.get_num_params()
 
     def prune(self) -> nn.Module:
         """Applies pruning to the upstream model."""

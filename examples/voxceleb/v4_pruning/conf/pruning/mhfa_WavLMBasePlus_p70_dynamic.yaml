@@ -40,7 +40,6 @@ dataset_args:
       name: "wavlm_base_plus"
       path_or_url: "/scratch/project_465002053/junyi/sv/wespeaker_dev/wespeaker_hubert/examples/voxceleb/v4_pruning/convert/wavlm_base_plus.hf.pth"
       pruning_units: "conv,head,attlayer,interm,ffnlayer"
-      dynamic_pruning_units: "attlayer,interm,ffnlayer"
     frozen: False
     frame_shift: 20
     frame_length: 20
@@ -106,12 +105,5 @@ min_temperature: 0.1           # Minimum temperature (sharper decisions)
 temperature_decay: 0.95        # Temperature decay factor per decay step
 temperature_decay_freq: 100    # Decay temperature every 100 training iterations
 
-use_dynamic_pruning: true
-dynamic_pruning_config:
-  gate_type: "hardconcrete"           # Static gate type: "hardconcrete" or "sigmoid"
-  dynamic_weight: 0.5                 # Balance between static and dynamic gating (0.0 = static only, 1.0 = dynamic only)
-  use_input_gating: true              # Enable input-dependent dynamic gating
-  predictor_config:
-    reduction_ratio: 16               # SE-style bottleneck reduction ratio
-    use_global_pool: true             # Use global average pooling for statistics
-    use_std: true  
+
+use_dynamic_pruning: True

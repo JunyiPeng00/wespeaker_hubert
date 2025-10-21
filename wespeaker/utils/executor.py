@@ -161,18 +161,21 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
             except Exception as e:
                 try:
                     # For dynamic pruning, try to get effective params with input features
-                    if use_dynamic_pruning and hasattr(model.frontend, 'get_num_params'):
+                    if use_dynamic_pruning and hasattr(model.module.frontend, 'get_num_params'):
                         import inspect
-                        sig = inspect.signature(model.frontend.get_num_params)
+                        sig = inspect.signature(model.module.frontend.get_num_params)
                         if 'x' in sig.parameters:
-                            cur_params = model.frontend.get_num_params(features)
+                            if i % 10 == 0:
+                                logger.info(f"Debug: features shape={wavs.shape}")
+                                logger.info(f"Debug: features dtype={wavs.dtype}")
+                            cur_params = model.module.frontend.get_num_params(wavs)
                             # Debug: log dynamic params every 100 batches
-                            if i % 100 == 0:
+                            if i % 10 == 0:
                                 logger.info(f"Dynamic pruning (fallback): using features for params calculation, cur_params={cur_params:.0f}")
                         else:
-                            cur_params = model.frontend.get_num_params()
+                            cur_params = model.module.frontend.get_num_params()
                             # Debug: log static params every 100 batches
-                            if i % 100 == 0:
+                            if i % 10 == 0:
                                 logger.info(f"Dynamic pruning (fallback): using static params calculation, cur_params={cur_params:.0f}")
                     else:
                         cur_params = model.frontend.get_num_params()
