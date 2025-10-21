@@ -61,8 +61,14 @@ class InputPredictor(nn.Module):
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(inplace=True),
             nn.Linear(hidden_dim, output_dim),
+            # Use a more sensitive activation for dynamic gating
+            # Scale and shift to get values in [0.1, 0.9] range for better sensitivity
             nn.Sigmoid()  # Output gating values in [0, 1]
         )
+        
+        # Add scaling and bias for better sensitivity
+        self.scale = nn.Parameter(torch.tensor(0.8))  # Scale factor
+        self.bias = nn.Parameter(torch.tensor(0.1))   # Bias to shift range
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Extract input statistics and predict gating values.
@@ -95,6 +101,12 @@ class InputPredictor(nn.Module):
         
         # Predict gating values
         gates = self.predictor(features)  # (B, output_dim)
+        
+        # Apply scaling and bias for better sensitivity
+        gates = gates * self.scale + self.bias
+        
+        # Ensure gates are in [0, 1] range
+        gates = torch.clamp(gates, 0.0, 1.0)
         
         return gates
 
@@ -258,14 +270,21 @@ class DynamicStructuredGate(nn.Module):
             return static_expectation
         
         # Compute dynamic gate expectation E[M_dynamic]
-        with torch.no_grad():
-            dynamic_gate = self.input_predictor(x)  # (B, n_in)
-            
-            # Average over batch dimension to get E[M_dynamic]
-            if dynamic_gate.dim() > 1:
-                dynamic_expectation = dynamic_gate.mean(dim=0).sum()  # (n_in,) -> scalar
-            else:
-                dynamic_expectation = dynamic_gate.sum()
+        # Remove no_grad to allow gradients to flow through dynamic gating
+        dynamic_gate = self.input_predictor(x)  # (B, n_in)
+        
+        # Use more sensitive expectation calculation
+        if dynamic_gate.dim() > 1:
+            # Use mean across batch and sum across features for better sensitivity
+            dynamic_expectation = dynamic_gate.mean(dim=0).sum()  # (n_in,) -> scalar
+        else:
+            dynamic_expectation = dynamic_gate.sum()
+        
+        # Add some noise during training to increase sensitivity
+        if self.training:
+            noise_scale = 0.01  # Small noise to increase sensitivity
+            noise = torch.randn_like(dynamic_expectation) * noise_scale
+            dynamic_expectation = dynamic_expectation + noise
         
         # Effective mask expectation: E[M] = E[M_static] * E[M_dynamic]
         # Weighted combination based on dynamic_weight
