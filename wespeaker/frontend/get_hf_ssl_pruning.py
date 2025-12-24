@@ -68,8 +68,6 @@ class HuggingfaceFrontend(nn.Module):
         frame_length: int = 20,
         sample_rate: int = 16000,
         hard_concrete_config: Optional[dict] = None,
-        use_dynamic_pruning: bool = False,
-        dynamic_pruning_config: Optional[dict] = None,
     ):
         """Initializes the HuggingfaceFrontend.
 
@@ -81,8 +79,6 @@ class HuggingfaceFrontend(nn.Module):
                 Hugging Face models.
             frozen: If True, the model parameters are frozen and not trained.
             hard_concrete_config: Configuration for HardConcrete pruning.
-            use_dynamic_pruning: Whether to enable dynamic pruning.
-            dynamic_pruning_config: Configuration for dynamic pruning.
         """
         super().__init__()
 
@@ -110,14 +106,10 @@ class HuggingfaceFrontend(nn.Module):
 
         # 2. Build the upstream model from the newly converted checkpoint.
         pruning_units = upstream_args.get('pruning_units', '')
-        dynamic_pruning_units = upstream_args.get('dynamic_pruning_units', None)
         self.upstream, self.upstream_config = self._build_upstream(
             upstream_ckpt_path=converted_model_path,
             pruning_units=pruning_units,
-            hard_concrete_config=hard_concrete_config,
-            use_dynamic_pruning=use_dynamic_pruning,
-            dynamic_pruning_config=dynamic_pruning_config,
-            dynamic_pruning_units=dynamic_pruning_units
+            hard_concrete_config=hard_concrete_config
         )
 
         # 3. Freeze weights if required.
@@ -132,9 +124,7 @@ class HuggingfaceFrontend(nn.Module):
             self.upstream.train()
 
     def _build_upstream(
-        self, upstream_ckpt_path: str, pruning_units: str, hard_concrete_config: Optional[dict] = None, 
-        use_dynamic_pruning: bool = False, dynamic_pruning_config: Optional[dict] = None,
-        dynamic_pruning_units: Optional[str] = None
+        self, upstream_ckpt_path: str, pruning_units: str, hard_concrete_config: Optional[dict] = None
     ) -> Tuple[nn.Module, Mapping[str, Any]]:
         """Builds the upstream model from a WeSpeaker format checkpoint.
 
@@ -143,11 +133,6 @@ class HuggingfaceFrontend(nn.Module):
             pruning_units: A comma-separated string specifying parts of the
                 model to prune (e.g., "head,ffnlayer").
             hard_concrete_config: Configuration for HardConcrete pruning.
-            use_dynamic_pruning: Whether to enable dynamic pruning.
-            dynamic_pruning_config: Configuration for dynamic pruning.
-            dynamic_pruning_units: A comma-separated string specifying parts of the
-                model for dynamic pruning only (e.g., "conv,head"). If None, 
-                inherits from pruning_units for backward compatibility.
 
         Returns:
             A tuple containing:
@@ -157,35 +142,19 @@ class HuggingfaceFrontend(nn.Module):
         ckpt = torch.load(upstream_ckpt_path, map_location='cpu')
         config = ckpt['config']
         
-        # Parse static pruning units
-        static_pruning_set = set(p.strip() for p in pruning_units.split(',') if p)
-        
-        # Parse dynamic pruning units - if not specified, inherit from static for backward compatibility
-        if dynamic_pruning_units is None:
-            dynamic_pruning_set = static_pruning_set
-        else:
-            dynamic_pruning_set = set(p.strip() for p in dynamic_pruning_units.split(',') if p)
+        # Parse pruning units
+        pruning_set = set(p.strip() for p in pruning_units.split(',') if p)
         
         if is_rank_zero():
-            print(f'Enabled static pruning units: {static_pruning_set}')
-            print(f'Enabled dynamic pruning units: {dynamic_pruning_set}')
+            print(f'Enabled pruning units: {pruning_set}')
 
-        # Configure static pruning flags
+        # Configure pruning flags
         config.update({
-            'extractor_prune_conv_channels': 'conv' in static_pruning_set,
-            'encoder_prune_attention_heads': 'head' in static_pruning_set,
-            'encoder_prune_attention_layer': 'attlayer' in static_pruning_set,
-            'encoder_prune_feed_forward_intermediate': 'interm' in static_pruning_set,
-            'encoder_prune_feed_forward_layer': 'ffnlayer' in static_pruning_set,
-        })
-        
-        # Configure dynamic pruning flags
-        config.update({
-            'extractor_dynamic_prune_conv_channels': 'conv' in dynamic_pruning_set,
-            'encoder_dynamic_prune_attention_heads': 'head' in dynamic_pruning_set,
-            'encoder_dynamic_prune_attention_layer': 'attlayer' in dynamic_pruning_set,
-            'encoder_dynamic_prune_feed_forward_intermediate': 'interm' in dynamic_pruning_set,
-            'encoder_dynamic_prune_feed_forward_layer': 'ffnlayer' in dynamic_pruning_set,
+            'extractor_prune_conv_channels': 'conv' in pruning_set,
+            'encoder_prune_attention_heads': 'head' in pruning_set,
+            'encoder_prune_attention_layer': 'attlayer' in pruning_set,
+            'encoder_prune_feed_forward_intermediate': 'interm' in pruning_set,
+            'encoder_prune_feed_forward_layer': 'ffnlayer' in pruning_set,
         })
 
         # Ensure required parameters are present
@@ -196,13 +165,9 @@ class HuggingfaceFrontend(nn.Module):
 
         # Determine which model class to use based on the model name
         if "wavlm" in self.upstream_name.lower():
-            model = wavlm_model(**config, hard_concrete_config=hard_concrete_config, 
-                              use_dynamic_pruning=use_dynamic_pruning, 
-                              dynamic_pruning_config=dynamic_pruning_config)
+            model = wavlm_model(**config, hard_concrete_config=hard_concrete_config)
         else:
-            model = wav2vec2_model(**config, hard_concrete_config=hard_concrete_config,
-                                 use_dynamic_pruning=use_dynamic_pruning, 
-                                 dynamic_pruning_config=dynamic_pruning_config)
+            model = wav2vec2_model(**config, hard_concrete_config=hard_concrete_config)
         
         result = model.load_state_dict(ckpt['state_dict'], strict=False)
         if is_rank_zero():
@@ -271,22 +236,13 @@ class HuggingfaceFrontend(nn.Module):
         layer_reps = torch.stack(ssl_hiddens, dim=0).permute(1, 3, 2, 0)
         return layer_reps, None
 
-    def get_num_params(self, x: Optional[torch.Tensor] = None) -> int:
-        """Returns the total number of parameters in the upstream model considering dynamic pruning.
-        
-        Args:
-            x: Input tensor for dynamic gating computation.
+    def get_num_params(self) -> int:
+        """Returns the total number of parameters in the upstream model.
         
         Returns:
-            Expected number of parameters considering effective mask.
+            Number of parameters in the model.
         """
-        # Check if upstream model supports dynamic pruning
-        import inspect
-        sig = inspect.signature(self.upstream.get_num_params)
-        if 'x' in sig.parameters:
-            return self.upstream.get_num_params(x)
-        else:
-            return self.upstream.get_num_params()
+        return self.upstream.get_num_params()
 
     def prune(self) -> nn.Module:
         """Applies pruning to the upstream model."""

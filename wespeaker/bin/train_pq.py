@@ -167,21 +167,10 @@ def train(config='conf/config.yaml', **kwargs):
             logger.info(f"temperature: {hard_concrete_config['temperature']}")
             logger.info(f"min_temperature: {hard_concrete_config['min_temperature']}")
         
-        # Prepare dynamic pruning parameters
-        use_dynamic_pruning = configs.get('use_dynamic_pruning', False)
-        dynamic_pruning_config = configs.get('dynamic_pruning_config', {})
-        dynamic_pruning_units = configs.get('dynamic_pruning_units', None)
-        
-        # Update upstream_args with dynamic_pruning_units if specified
-        if dynamic_pruning_units is not None:
-            configs['dataset_args'][frontend_args]['upstream_args']['dynamic_pruning_units'] = dynamic_pruning_units
-        
         frontend = frontend_class_dict[frontend_type](
             **configs['dataset_args'][frontend_args],
             sample_rate=configs['dataset_args']['resample_rate'],
-            hard_concrete_config=hard_concrete_config,
-            use_dynamic_pruning=use_dynamic_pruning,
-            dynamic_pruning_config=dynamic_pruning_config)
+            hard_concrete_config=hard_concrete_config)
         configs['model_args']['feat_dim'] = frontend.output_size()
         model = get_speaker_model(configs['model'])(**configs['model_args'])
         model.add_module("frontend", frontend)
@@ -288,13 +277,10 @@ def train(config='conf/config.yaml', **kwargs):
             except Exception:
                 configs['original_ssl_num_params'] = 1.0
         reg_lr = configs.get('initial_reg_lr', 2e-2)
-        # Enable separate LR for dynamic input predictors when dynamic pruning is used
-        use_dynamic_pruning = configs.get('use_dynamic_pruning', False)
         p_groups, lambda_pair = make_pruning_param_groups(
             ddp_model,
             cls_lr=configs['optimizer_args']['lr'],
             reg_lr=reg_lr,
-            use_dynamic_pruning=use_dynamic_pruning,
         )
         pg_main   = [pg for pg in p_groups if pg.get('name') == 'main']
         pg_others = [pg for pg in p_groups if pg.get('name') != 'main']

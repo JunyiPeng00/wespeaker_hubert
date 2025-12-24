@@ -118,25 +118,14 @@ class Wav2Vec2Model(Module):
         # print(f'trans elapsed : {trans_end - trans_start}')
         return x, lengths
     
-    def get_num_params(self, x: Optional[Tensor] = None):
-        """Calculate the current size considering dynamic pruning.
-        
-        Args:
-            x: Input tensor for dynamic gating computation.
+    def get_num_params(self):
+        """Calculate the current size considering pruning.
         
         Returns:
             Expected number of parameters considering effective mask.
         """
         feature_extractor_size, encoder_in_features = self.feature_extractor.get_num_params_and_final_out_channels()
-        if x is not None:
-            with torch.no_grad():
-                lengths = torch.LongTensor([x.shape[1]]).repeat(x.shape[0]).to(x.device)
-                encoder_features, _ = self.feature_extractor(x, lengths)
-                print(f"Debug: encoder_features shape after feature_extractor: {encoder_features.shape}")
-                encoder_size = self.encoder.get_num_params(encoder_in_features, lengths, encoder_features)
-        else:
-            # Static calculation without input
-            encoder_size = self.encoder.get_num_params(encoder_in_features)
+        encoder_size = self.encoder.get_num_params(encoder_in_features)
         return feature_extractor_size + encoder_size
     
     def prune(self):
@@ -234,14 +223,6 @@ def wav2vec2_model_original(
     encoder_prune_feed_forward_layer: bool = False,
     use_layerwise_prune: str = False,
     hard_concrete_config: Optional[dict] = None,
-    use_dynamic_pruning: bool = False,
-    dynamic_pruning_config: Optional[dict] = None,
-    # New dynamic pruning configuration flags
-    extractor_dynamic_prune_conv_channels: bool = False,
-    encoder_dynamic_prune_attention_heads: bool = False,
-    encoder_dynamic_prune_attention_layer: bool = False,
-    encoder_dynamic_prune_feed_forward_intermediate: bool = False,
-    encoder_dynamic_prune_feed_forward_layer: bool = False,
 ) -> Wav2Vec2Model:
     """Builds custom :class:`~torchaudio.models.Wav2Vec2Model`.
 
@@ -371,8 +352,6 @@ def wav2vec2_model_original(
         extractor_mode, extractor_conv_layer_config, extractor_conv_bias, 
         prune_conv_channels=extractor_prune_conv_channels,
         hard_concrete_config=hard_concrete_config,
-        use_dynamic_pruning=use_dynamic_pruning and extractor_dynamic_prune_conv_channels,
-        dynamic_pruning_config=dynamic_pruning_config,
     )
     encoder = components._get_encoder(
         in_features=extractor_conv_layer_config[-1][0],
@@ -396,13 +375,6 @@ def wav2vec2_model_original(
         prune_feed_forward_intermediate=encoder_prune_feed_forward_intermediate,
         prune_feed_forward_layer=encoder_prune_feed_forward_layer,
         hard_concrete_config=hard_concrete_config,
-        use_dynamic_pruning=use_dynamic_pruning,
-        dynamic_pruning_config=dynamic_pruning_config,
-        # Pass dynamic pruning flags to encoder
-        dynamic_prune_attention_heads=encoder_dynamic_prune_attention_heads,
-        dynamic_prune_attention_layer=encoder_dynamic_prune_attention_layer,
-        dynamic_prune_feed_forward_intermediate=encoder_dynamic_prune_feed_forward_intermediate,
-        dynamic_prune_feed_forward_layer=encoder_dynamic_prune_feed_forward_layer,
     )
     aux = None
     if aux_num_out is not None:
@@ -812,14 +784,6 @@ def wavlm_model(
     encoder_prune_feed_forward_layer: bool = False,
     use_layerwise_prune: str = False,
     hard_concrete_config: Optional[dict] = None,
-    use_dynamic_pruning: bool = False,
-    dynamic_pruning_config: Optional[dict] = None,
-    # New dynamic pruning configuration flags
-    extractor_dynamic_prune_conv_channels: bool = False,
-    encoder_dynamic_prune_attention_heads: bool = False,
-    encoder_dynamic_prune_attention_layer: bool = False,
-    encoder_dynamic_prune_feed_forward_intermediate: bool = False,
-    encoder_dynamic_prune_feed_forward_layer: bool = False,
 ) -> Wav2Vec2Model:
     """Builds custom WaveLM model :cite:`chen2022wavlm`. The architecture is compatible
     with Wav2Vec2 model :cite:`baevski2020wav2vec`, and so the output object is
@@ -891,8 +855,6 @@ def wavlm_model(
         extractor_mode, extractor_conv_layer_config, extractor_conv_bias,
         prune_conv_channels=extractor_prune_conv_channels,
         hard_concrete_config=hard_concrete_config,
-        use_dynamic_pruning=use_dynamic_pruning and extractor_dynamic_prune_conv_channels,
-        dynamic_pruning_config=dynamic_pruning_config,
     )
     encoder = components._get_wavlm_encoder(
         in_features=extractor_conv_layer_config[-1][0],
@@ -919,13 +881,6 @@ def wavlm_model(
         prune_feed_forward_layer=encoder_prune_feed_forward_layer,
         use_layerwise_prune=use_layerwise_prune,
         hard_concrete_config=hard_concrete_config,
-        use_dynamic_pruning=use_dynamic_pruning,
-        dynamic_pruning_config=dynamic_pruning_config,
-        # Pass dynamic pruning flags to encoder
-        dynamic_prune_attention_heads=encoder_dynamic_prune_attention_heads,
-        dynamic_prune_attention_layer=encoder_dynamic_prune_attention_layer,
-        dynamic_prune_feed_forward_intermediate=encoder_dynamic_prune_feed_forward_intermediate,
-        dynamic_prune_feed_forward_layer=encoder_dynamic_prune_feed_forward_layer,
     )
     aux = None
     if aux_num_out is not None:

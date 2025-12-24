@@ -22,10 +22,6 @@ from wespeaker.utils.prune_utils import (
     pruning_loss, 
     get_progressive_sparsity, 
     get_learning_rate_with_plateau_decay,
-    compute_dynamic_pruning_loss,
-    compute_effective_keep_ratio,
-    compute_effective_l0_norm,
-    set_dynamic_pruning_mode
 )
 import torch.nn.utils as nn_utils
 
@@ -38,12 +34,6 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
     else:
         optimizer_reg = None
     
-    # Set dynamic pruning mode if enabled
-    use_dynamic_pruning = configs.get('use_dynamic_pruning', False)
-    if use_dynamic_pruning:
-        dynamic_mode = configs.get('dynamic_mode', True)
-        set_dynamic_pruning_mode(model, dynamic_mode)
-
     # By default use average pooling
     loss_meter = tnt.meter.AverageValueMeter()
     acc_meter = tnt.meter.ClassErrorMeter(accuracy=True)
@@ -54,7 +44,6 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
 
     # Pruning configuration
     use_pruning = configs.get('use_pruning_loss', False)
-    use_dynamic_pruning = configs.get('use_dynamic_pruning', False)
     if use_pruning:
         target_sp = configs.get('target_sparsity', 0.5)
         l1, l2 = configs.get('lambda_pair', (1.0, 5.0))
@@ -65,11 +54,6 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
         total_epochs = configs.get('num_epochs', 100)
         total_iters = total_epochs * epoch_iter
         plateau_start_ratio = configs.get('plateau_start_ratio', 0.9)
-        
-        # Dynamic pruning configuration
-        if use_dynamic_pruning:
-            dynamic_l1_weight = configs.get('dynamic_l1_weight', 1e-4)
-            dynamic_mode = configs.get('dynamic_mode', True)  # Enable dynamic mode by default
 
     frontend_type = configs['dataset_args'].get('frontend', 'fbank')
     # LSQ controller removed - LSQ quantization is disabled
@@ -136,69 +120,10 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
                 )
 
             # Expected current params; rely on frontend for pruning stats when available
-            # try:
-                # For dynamic pruning, try to get effective params with input features
-            if use_dynamic_pruning and hasattr(model.module.frontend, 'get_num_params'):
-                # Check if get_num_params accepts input parameter
-                import inspect
-                sig = inspect.signature(model.module.frontend.get_num_params)
-                if 'x' in sig.parameters:
-                    # Use current batch features for dynamic gating
-                    cur_params = model.module.frontend.get_num_params(wavs)
-                    print(f"cur_params: {cur_params}")
-                    # Debug: log dynamic params every 100 batches
-                    # if i % 100 == 0:
-                        # logger.info(f"Dynamic pruning: using features for params calculation, cur_params={cur_params:.0f}")
-                        # Also log the sparsity
-                        # sparsity = 1.0 - (cur_params / orig_params)
-                        # logger.info(f"Dynamic pruning: current sparsity={sparsity:.4f}")
-                else:
-                    cur_params = model.module.frontend.get_num_params()
-                    # Debug: log static params every 100 batches
-                    if i % 100 == 0:
-                        logger.info(f"Dynamic pruning: using static params calculation, cur_params={cur_params:.0f}")
-            else:
-                cur_params = model.module.frontend.get_num_params()
-                # print(f"cur_params: {cur_params}")
-            # except Exception as e:
-            #     try:
-            #         # For dynamic pruning, try to get effective params with input features
-            #         if use_dynamic_pruning and hasattr(model.module.frontend, 'get_num_params'):
-            #             import inspect
-            #             sig = inspect.signature(model.module.frontend.get_num_params)
-            #             if 'x' in sig.parameters:
-            #                 cur_params = model.module.frontend.get_num_params(wavs)
-            #             else:
-            #                 cur_params = model.module.frontend.get_num_params()
-            #         else:
-            #             cur_params = model.frontend.get_num_params()
-            #     except Exception as e2:
-            #         cur_params = orig_params
-                    # Debug: log fallback params every 100 batches
+            cur_params = model.module.frontend.get_num_params()
 
             prune_reg, exp_sp = pruning_loss(cur_params, orig_params, target_sp_cur, l1, l2)
             total_loss = cls_loss + prune_reg
-            
-            # Add dynamic pruning L1 loss if enabled
-            if use_dynamic_pruning:
-                dynamic_l1_loss = compute_dynamic_pruning_loss(model, dynamic_l1_weight)
-                total_loss = total_loss + dynamic_l1_loss
-                
-                # For pure dynamic pruning, compute effective keep ratio for logging
-                if 'features' in locals() and features is not None:
-                    try:
-                        effective_keep_ratio = compute_effective_keep_ratio(model, features)
-                        effective_l0_norm = compute_effective_l0_norm(model, features)
-                        
-                        # Log effective statistics for monitoring
-                        if hasattr(logger, 'log_metrics'):
-                            logger.log_metrics({
-                                'effective_keep_ratio': effective_keep_ratio.item(),
-                                'effective_l0_norm': effective_l0_norm.item(),
-                            }, step=cur_iter)
-                    except Exception as e:
-                        # Skip logging if computation fails
-                        pass
         else:
             prune_reg, exp_sp, target_sp_cur = 0.0, None, None
             total_loss = cls_loss
