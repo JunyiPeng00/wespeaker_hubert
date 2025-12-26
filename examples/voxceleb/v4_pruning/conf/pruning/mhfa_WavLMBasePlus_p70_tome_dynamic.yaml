@@ -1,0 +1,164 @@
+### train configuraton
+# Configuration for enabling both Pruning and dynamic ToMe length compression
+# Pruning: Structured pruning based on HardConcrete, target sparsity 70%
+# ToMe: Dynamic budget mode, network learns to decide compression ratio
+
+exp_dir: exp/ECAPA_TDNN_GLOB_c512-ASTP-emb192-WavLM_Large_joint_ft-num_frms150-aug0.6-spTrue-saFalse-ArcMargin_intertopk_subcenter-SGD-epoch20
+gpus: "[0,1,2,3,4,5,6,7]"
+num_avg: 2
+enable_amp: False # whether enable automatic mixed precision training
+do_lm: False
+
+seed: 42
+num_epochs: 10
+save_epoch_interval: 1 # save model every epoch
+log_batch_interval: 100 # log every 100 batchs
+
+dataloader_args:
+  batch_size: 128 
+  num_workers: 8
+  pin_memory: False
+  prefetch_factor: 6
+  drop_last: True
+
+
+dataset_args:
+  # the sample number which will be traversed within one epoch, if the value equals to 0,
+  # the utterance number in the dataset will be used as the sample_num_per_epoch.
+  sample_num_per_epoch: 0
+  shuffle: True
+  shuffle_args:
+    shuffle_size: 2500
+  filter: True
+  filter_args:
+    min_num_frames: 50
+    max_num_frames: 400
+  resample_rate: 16000
+  speed_perturb: False
+  num_frms: 150
+  aug_prob: 0.6 # prob to add reverb & noise aug per sample
+  frontend: "huggingface" # fbank, s3prl
+  huggingface_args:
+    upstream_args:
+      name: "wavlm_base_plus"
+      path_or_url: "/scratch/project_465002053/junyi/sv/wespeaker_dev/wespeaker_hubert/examples/voxceleb/v4_pruning/convert/wavlm_base_plus.hf.pth"
+      pruning_units: "conv,head,attlayer,interm,ffnlayer"  # Enable all pruning units
+      dynamic_pruning_units: ""
+    frozen: False
+    frame_shift: 20
+    frame_length: 20
+  cmvn: True
+  cmvn_args:
+    norm_mean: True
+    norm_var: False
+  spec_aug: False
+  spec_aug_args:
+    num_t_mask: 1
+    num_f_mask: 1
+    max_t: 10
+    max_f: 8
+    prob: 0.6
+
+model: SSL_BACKEND_MHFA # ECAPA_TDNN_GLOB_c512, ECAPA_TDNN_GLOB_c1024
+model_init: null
+model_args:
+  feat_dim: -1
+  head_nb: 32
+  embed_dim: 256
+  compression_dim: 128
+  feature_grad_mult: 0.1
+  nb_layer: 13
+
+projection_args:
+  project_type: "arc_margin_intertopk_subcenter" # add_margin, arc_margin, sphere, softmax, arc_margin_intertopk_subcenter
+  scale: 32.0
+  easy_margin: False
+
+margin_scheduler: MarginScheduler
+margin_update:
+  initial_margin: 0.2
+  final_margin: 0.2
+  increase_start_epoch: 1
+  fix_start_epoch: 1
+  update_margin: True
+  increase_type: "exp" # exp, linear
+
+loss: CrossEntropyLoss
+loss_args: {}
+
+optimizer: AdamW
+optimizer_args:
+  weight_decay: 1.0e-7
+
+scheduler: ExponentialDecrease
+scheduler_args:
+  initial_lr: 1.0e-4 # 8.0e-3
+  final_lr: 1.0e-6 #4.4e-3 
+  warm_up_epoch: 2
+  warm_from_zero: True
+
+# ============================================================
+# Pruning Configuration: Structured Pruning based on HardConcrete
+# ============================================================
+use_pruning_loss: True # whether use pruning loss, if True, the pruning loss will be added to the training loss
+target_sparsity: 0.7  # Target sparsity 70%
+initial_reg_lr: 5.0e-2
+sparsity_warmup_epochs: 8
+sparsity_schedule: "cosine"  # Options: linear, cosine, exponential, sigmoid
+min_sparsity: 0.0  # Initial sparsity level
+
+# HardConcrete configuration
+# For 70% target sparsity, init_mean should be set to ~0.7
+hard_concrete_config:
+  init_mean: 0.7              # Drop 70% of units → 70% sparsity
+  init_std: 0.01              # Small variance for stable initialization
+  temperature: 0.67           # Initial temperature (2/3)
+  min_temperature: 0.1        # Minimum temperature (sharper decisions)
+  temperature_decay: 0.95     # Temperature decay factor per decay step
+  temperature_decay_freq: 100 # Decay temperature every 100 training iterations
+
+# Legacy parameters (kept for backward compatibility, overridden by hard_concrete_config)
+min_temperature: 0.1           
+temperature_decay: 0.95        
+temperature_decay_freq: 100
+
+# ============================================================
+# ToMe Configuration: Dynamic Length Compression (Token Merging)
+# ============================================================
+# ToMe reduces sequence length by merging similar tokens, reducing FLOPs
+tome_config:
+  enabled: True  # Enable ToMe
+  insert_layers: [3, 6]  # Insert ToMe blocks after layer 3 and layer 6 (0-based index)
+  params:
+    # Dynamic budget mode: network learns to decide which token pairs to merge and merge quantity
+    keep_ratio: null  # None means use dynamic budget mode
+    
+    # Training mode: soft merge (differentiable) vs hard pack (truly shorten sequence)
+    pack_in_train: False  # False = soft merge (default), True = hard pack
+    
+    # Dynamic budget mode parameters (only used when keep_ratio is null)
+    gate_init_bias: -2.0  # Initial bias for gate (negative = encourage merging)
+    gate_temperature: 0.6666666666666666  # Temperature for gate sampling (2/3)
+    gate_limit_l: -0.1  # Lower bound for gate output
+    gate_limit_r: 1.1  # Upper bound for gate output
+    gate_mlp_hidden: 64  # Hidden dimension for gate MLP
+    l0_reg_weight: 0.01  # L0 regularization weight for gate
+    
+    # Matching parameters
+    match_dim: 128  # Matching projection space dimension
+    window_size: 16  # Local window size
+    candidate_ratio: 0.8  # Candidate pair ratio
+    sim_threshold: 0.0  # Similarity threshold
+    
+    # Merge score weights
+    score_sim_weight: 1.0  # Similarity weight
+    score_imp_weight: 0.5  # Importance weight
+    alpha_scale: 5.0  # Alpha scaling factor
+
+# ============================================================
+# FLOPs-aware Compression (Optional)
+# ============================================================
+# If enabled, FLOPs will be used as compression target instead of parameter count
+# use_flops_aware: True  # Uncomment to enable FLOPs-aware compression
+# original_ssl_num_flops: 1.0  # Need to pre-compute original FLOPs
+
