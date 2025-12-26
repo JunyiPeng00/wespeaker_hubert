@@ -207,6 +207,43 @@ def pruning_loss(
     return regularization_term, expected_sparsity
 
 
+def flops_pruning_loss(
+    current_flops: float,
+    original_flops: float,
+    target_sparsity: float,
+    lambda1: torch.Tensor,
+    lambda2: torch.Tensor,
+) -> tuple[torch.Tensor, float]:
+    """Calculates the pruning regularization loss based on target FLOPs sparsity.
+
+    This function computes the Lagrangian term used to enforce a target
+    FLOPs sparsity level. The loss penalizes deviations between the current expected
+    FLOPs sparsity and the target sparsity using a quadratic penalty function.
+
+    Args:
+        current_flops: The current FLOPs at the current step (considering pruning and ToMe).
+        original_flops: The baseline FLOPs without any pruning or ToMe.
+        target_sparsity: The desired sparsity level (0.0 to 1.0, e.g., 0.7 for 70% sparsity).
+        lambda1: The first Lagrange multiplier tensor (linear penalty coefficient).
+        lambda2: The second Lagrange multiplier tensor (quadratic penalty coefficient).
+
+    Returns:
+        A tuple containing:
+        - The calculated regularization loss as a PyTorch tensor.
+        - The current expected FLOPs sparsity as a float (0.0 to 1.0).
+    """
+    expected_sparsity = 1.0 - (current_flops / original_flops)
+    sparsity_difference = expected_sparsity - target_sparsity
+    
+    # Quadratic penalty: linear + quadratic terms
+    regularization_term = (
+        lambda1 * sparsity_difference + 
+        lambda2 * sparsity_difference ** 2
+    )
+    
+    return regularization_term, expected_sparsity
+
+
 def get_learning_rate_with_plateau_decay(
     current_iter: int,
     total_iters: int,

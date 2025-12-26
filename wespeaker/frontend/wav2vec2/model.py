@@ -128,6 +128,47 @@ class Wav2Vec2Model(Module):
         encoder_size = self.encoder.get_num_params(encoder_in_features)
         return feature_extractor_size + encoder_size
     
+    def get_num_flops(self, batch_size: int, input_length: int, tome_keep_ratios: Optional[List[float]] = None, auto_use_last_ratios: bool = True) -> int:
+        """Calculate FLOPs considering pruning and ToMe.
+        
+        Args:
+            batch_size: Batch size.
+            input_length: Input audio length (in samples).
+            tome_keep_ratios: List of keep ratios after each ToMe block.
+                             If None and auto_use_last_ratios=True, will try to use keep ratios
+                             from last forward pass (useful in training with dynamic ToMe).
+            auto_use_last_ratios: If True and tome_keep_ratios is None, automatically use
+                                 keep ratios from last forward pass if available.
+        
+        Returns:
+            Number of FLOPs (floating point operations).
+        """
+        # Feature extractor FLOPs
+        # Approximate: audio samples -> frames through CNN layers
+        # For wav2vec2: ~320 samples per frame (stride product)
+        # Start with approximate frame count
+        approx_frames = input_length // 320  # Rough estimate
+        feature_extractor_flops = self.feature_extractor.get_num_flops(batch_size, input_length)
+        
+        # Get actual output frames from feature extractor
+        # We need to track through conv layers
+        current_length = input_length
+        for layer in self.feature_extractor.conv_layers:
+            current_length = layer.get_output_length(current_length)
+        
+        encoder_in_features = self.feature_extractor.conv_layers[-1].conv.out_channels
+        if self.feature_extractor.conv_layers[-1].hard_concrete is not None:
+            encoder_in_features = int(self.feature_extractor.conv_layers[-1].hard_concrete.l0_norm().item())
+        
+        # Encoder FLOPs
+        encoder_flops = self.encoder.get_num_flops(
+            batch_size, current_length, encoder_in_features, 
+            tome_keep_ratios=tome_keep_ratios,
+            auto_use_last_ratios=auto_use_last_ratios
+        )
+        
+        return int(feature_extractor_flops + encoder_flops)
+    
     def prune(self):
         self.eval()     # must be in eval mode
         conv_config, conv_out_index = self.feature_extractor.prune()    # [(output_channel, kernel_size, stride), ...]
@@ -784,6 +825,7 @@ def wavlm_model(
     encoder_prune_feed_forward_layer: bool = False,
     use_layerwise_prune: str = False,
     hard_concrete_config: Optional[dict] = None,
+    tome_config: Optional[dict] = None,  # ToMe packing configuration
 ) -> Wav2Vec2Model:
     """Builds custom WaveLM model :cite:`chen2022wavlm`. The architecture is compatible
     with Wav2Vec2 model :cite:`baevski2020wav2vec`, and so the output object is
@@ -881,6 +923,7 @@ def wavlm_model(
         prune_feed_forward_layer=encoder_prune_feed_forward_layer,
         use_layerwise_prune=use_layerwise_prune,
         hard_concrete_config=hard_concrete_config,
+        tome_config=tome_config,
     )
     aux = None
     if aux_num_out is not None:

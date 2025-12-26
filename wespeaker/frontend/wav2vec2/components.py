@@ -20,6 +20,14 @@ from .pruning_utils import (
     prune_layer_norm,
 )
 
+# Optional import for ToMe packing
+try:
+    from .diff_tome_packing import SpeechToMePackingBlock
+    TOME_AVAILABLE = True
+except ImportError:
+    TOME_AVAILABLE = False
+    SpeechToMePackingBlock = None
+
 
 def _init_transformer_params(module):
     """
@@ -157,6 +165,53 @@ class ConvLayerBlock(Module):
             num_params += out_channels * 2
         
         return num_params, out_channels
+    
+    def get_num_flops(self, batch_size: int, input_length: int, in_channels: int) -> int:
+        """Compute FLOPs for this conv layer.
+        
+        Args:
+            batch_size: Batch size.
+            input_length: Input sequence length (in frames).
+            in_channels: Input channel number.
+            
+        Returns:
+            Number of FLOPs (floating point operations).
+        """
+        if self.hard_concrete is not None:
+            out_channels = int(self.hard_concrete.l0_norm().item())
+        else:
+            out_channels = self.conv.out_channels
+        
+        # Output length after conv
+        output_length = (input_length - self.kernel_size) // self.stride + 1
+        output_length = max(0, output_length)
+        
+        # Conv1d FLOPs: 2 * (in_channels * out_channels * kernel_size * output_length)
+        # Factor 2 comes from multiply-add operations
+        conv_flops = 2 * in_channels * out_channels * self.kernel_size * output_length
+        
+        # Bias addition: out_channels * output_length
+        if hasattr(self.conv, 'conv1d'):
+            if self.conv.conv1d.bias is not None:
+                conv_flops += out_channels * output_length
+        else:
+            if self.conv.bias is not None:
+                conv_flops += out_channels * output_length
+        
+        # LayerNorm FLOPs: 2 * out_channels * output_length (mean + variance)
+        if self.layer_norm is not None:
+            conv_flops += 2 * out_channels * output_length
+        
+        # GELU activation (approximate): ~6 ops per element
+        conv_flops += 6 * out_channels * output_length
+        
+        # Multiply by batch size
+        return int(conv_flops * batch_size)
+    
+    def get_output_length(self, input_length: int) -> int:
+        """Compute output length after this conv layer."""
+        output_length = (input_length - self.kernel_size) // self.stride + 1
+        return max(0, output_length)
 
 
 class FeatureExtractor(Module):
@@ -220,6 +275,35 @@ class FeatureExtractor(Module):
         num_params += in_channels   # dummy weight
         
         return num_params, in_channels
+    
+    def get_num_flops(self, batch_size: int, input_length: int) -> int:
+        """Compute FLOPs for the feature extractor.
+        
+        Args:
+            batch_size: Batch size.
+            input_length: Input sequence length (in frames).
+            
+        Returns:
+            Number of FLOPs (floating point operations).
+        """
+        in_channels = 1
+        current_length = input_length
+        total_flops = 0
+        
+        for layer in self.conv_layers:
+            layer_flops = layer.get_num_flops(batch_size, current_length, in_channels)
+            total_flops += layer_flops
+            current_length = layer.get_output_length(current_length)
+            # Get output channels for next layer
+            if layer.hard_concrete is not None:
+                in_channels = int(layer.hard_concrete.l0_norm().item())
+            else:
+                in_channels = layer.conv.out_channels
+        
+        # Dummy weight multiplication: in_channels * current_length
+        total_flops += in_channels * current_length * batch_size
+        
+        return int(total_flops)
     
     def prune(self):
         """"Prune conv layers and dummy weight based on hardconcrete parameters.
@@ -307,6 +391,27 @@ class FeatureProjection(Module):
     
     def get_num_params(self, in_features):
         return in_features * 2 + (in_features + 1) * self.projection.out_features
+    
+    def get_num_flops(self, batch_size: int, sequence_length: int, in_features: int) -> int:
+        """Compute FLOPs for feature projection.
+        
+        Args:
+            batch_size: Batch size.
+            sequence_length: Sequence length (in tokens).
+            in_features: Input feature dimension.
+            
+        Returns:
+            Number of FLOPs (floating point operations).
+        """
+        out_features = self.projection.out_features
+        
+        # LayerNorm FLOPs: 2 * in_features * sequence_length
+        layer_norm_flops = 2 * batch_size * sequence_length * in_features
+        
+        # Linear projection: B * T * in_features * out_features
+        linear_flops = batch_size * sequence_length * in_features * out_features
+        
+        return int(layer_norm_flops + linear_flops)
 
 
 class ConvolutionalPositionalEmbedding(Module):
@@ -516,6 +621,42 @@ class SelfAttention(Module):
             num_params += self.hard_concrete_for_layer.n_in
         
         return num_params
+    
+    def get_num_flops(self, batch_size: int, sequence_length: int) -> int:
+        """Compute FLOPs for self-attention layer.
+        
+        Args:
+            batch_size: Batch size.
+            sequence_length: Sequence length (in tokens).
+            
+        Returns:
+            Number of FLOPs (floating point operations).
+        """
+        if self.hard_concrete_for_heads is not None:
+            num_heads = int(self.hard_concrete_for_heads.l0_norm().item())
+        else:
+            num_heads = self.num_heads
+        
+        # Q, K, V projections: 3 * (B * T * embed_dim * (num_heads * head_dim))
+        qkv_flops = 3 * batch_size * sequence_length * self.embed_dim * (num_heads * self.head_dim)
+        
+        # Attention computation: B * num_heads * T * T * head_dim
+        attn_flops = batch_size * num_heads * sequence_length * sequence_length * self.head_dim
+        
+        # Output projection: B * T * (num_heads * head_dim) * embed_dim
+        out_proj_flops = batch_size * sequence_length * (num_heads * self.head_dim) * self.embed_dim
+        
+        # Softmax: ~3 ops per element in attention matrix
+        softmax_flops = 3 * batch_size * num_heads * sequence_length * sequence_length
+        
+        total_flops = qkv_flops + attn_flops + out_proj_flops + softmax_flops
+        
+        # Layer pruning
+        if self.hard_concrete_for_layer is not None:
+            layer_keep_ratio = float(self.hard_concrete_for_layer.l0_norm().item())
+            total_flops = int(total_flops * layer_keep_ratio)
+        
+        return int(total_flops)
 
     def prune(self):
         new_config = {
@@ -902,6 +1043,41 @@ class FeedForward(Module):
         
         return num_params
     
+    def get_num_flops(self, batch_size: int, sequence_length: int) -> int:
+        """Compute FLOPs for feedforward layer.
+        
+        Args:
+            batch_size: Batch size.
+            sequence_length: Sequence length (in tokens).
+            
+        Returns:
+            Number of FLOPs (floating point operations).
+        """
+        io_features = self.intermediate_dense.in_features
+        
+        if self.hard_concrete_for_intermediate is not None:
+            intermediate_features = int(self.hard_concrete_for_intermediate.l0_norm().item())
+        else:
+            intermediate_features = self.intermediate_dense.out_features
+        
+        # First linear layer: B * T * embed_dim * intermediate_features
+        first_linear_flops = batch_size * sequence_length * io_features * intermediate_features
+        
+        # GELU activation: ~6 ops per element
+        gelu_flops = 6 * batch_size * sequence_length * intermediate_features
+        
+        # Second linear layer: B * T * intermediate_features * embed_dim
+        second_linear_flops = batch_size * sequence_length * intermediate_features * io_features
+        
+        total_flops = first_linear_flops + gelu_flops + second_linear_flops
+        
+        # Layer pruning
+        if self.hard_concrete_for_layer is not None:
+            layer_keep_ratio = float(self.hard_concrete_for_layer.l0_norm().item())
+            total_flops = int(total_flops * layer_keep_ratio)
+        
+        return int(total_flops)
+    
     def _get_layer_weight_bias(self, layer):
         """Get weight and bias from a layer (handles both Linear and QuantizedLinear)."""
         if hasattr(layer, 'linear'):
@@ -1050,6 +1226,30 @@ class EncoderLayer(Module):
         if self.feed_forward is not None:
             num_params += self.feed_forward.get_num_params()
         return num_params
+    
+    def get_num_flops(self, batch_size: int, sequence_length: int) -> int:
+        """Compute FLOPs for encoder layer.
+        
+        Args:
+            batch_size: Batch size.
+            sequence_length: Sequence length (in tokens).
+            
+        Returns:
+            Number of FLOPs (floating point operations).
+        """
+        total_flops = 0
+        
+        # LayerNorm FLOPs: 2 * embed_dim * sequence_length (mean + variance)
+        layer_norm_flops = 2 * self.embed_dim * sequence_length * batch_size
+        total_flops += 2 * layer_norm_flops  # Two layer norms
+        
+        if self.attention is not None:
+            total_flops += self.attention.get_num_flops(batch_size, sequence_length)
+        
+        if self.feed_forward is not None:
+            total_flops += self.feed_forward.get_num_flops(batch_size, sequence_length)
+        
+        return int(total_flops)
 
 
 class Transformer(Module):
@@ -1060,6 +1260,8 @@ class Transformer(Module):
         layers: Module,
         layer_norm_first: bool,
         layer_drop: float,
+        tome_blocks: Optional[nn.ModuleList] = None,
+        tome_insert_layers: Optional[List[int]] = None,
     ):
         super().__init__()
         self.pos_conv_embed = pos_conv_embed
@@ -1068,6 +1270,13 @@ class Transformer(Module):
         self.layer_drop = layer_drop
         self.dropout = nn.Dropout(dropout)
         self.layers = layers
+        self.tome_blocks = tome_blocks  # Optional ToMe blocks between layers
+        self.tome_insert_layers = tome_insert_layers if tome_insert_layers is not None else []  # Which layer indices to insert ToMe after
+        
+        # Store keep ratios from last forward pass (for FLOPs calculation in training)
+        # Use regular attributes (not buffers) since we store Python floats
+        self._last_tome_keep_ratios: Optional[List[float]] = None
+        self._last_tome_keep_ratios_exp: Optional[List[float]] = None
 
     def _preprocess(self, x: Tensor):
         x = x + self.pos_conv_embed(x)
@@ -1084,11 +1293,74 @@ class Transformer(Module):
         attention_mask: Optional[Tensor] = None,
         position_bias: Optional[Tensor] = None,
         current_iter: Optional[int] = None,
+        lengths: Optional[Tensor] = None,
     ) -> Tensor:
         x = self._preprocess(x)
-        for layer in self.layers:
+        
+        # Convert attention_mask to 1D mask format for ToMe if needed
+        tome_mask_1d = None
+        if attention_mask is not None and lengths is not None:
+            # attention_mask is [B, 1, T, T], extract 1D mask
+            batch_size, _, seq_len, _ = attention_mask.shape
+            # Create 1D mask from lengths
+            tome_mask_1d = torch.arange(seq_len, device=lengths.device).expand(batch_size, seq_len) < lengths[:, None]
+        
+        for layer_idx, layer in enumerate(self.layers):
             if not (self.training and torch.rand(1).item() <= self.layer_drop):
                 x, position_bias = layer(x, attention_mask, position_bias=position_bias, current_iter=current_iter)
+            
+            # Apply ToMe packing after specified layers
+            if self.tome_blocks is not None and layer_idx in self.tome_insert_layers:
+                tome_idx = self.tome_insert_layers.index(layer_idx)
+                if tome_idx < len(self.tome_blocks):
+                    tome_block = self.tome_blocks[tome_idx]
+                    if tome_block is not None:
+                        # Apply ToMe packing
+                        x_packed, new_mask_1d, tome_info = tome_block(x, attn_mask=tome_mask_1d)
+                        x = x_packed
+                        
+                        # Store keep ratios for FLOPs calculation (use expected keep ratio in training)
+                        # Get expected keep ratio (differentiable, used in training)
+                        exp_keep_ratio = float(tome_info.get('avg_keep_ratio_exp', 1.0))
+                        # Get hard keep ratio (actual, used in eval)
+                        hard_keep_ratio = float(tome_info.get('avg_keep_ratio_hard', 1.0))
+                        
+                        # Initialize lists if needed
+                        if self._last_tome_keep_ratios is None:
+                            self._last_tome_keep_ratios = [None] * len(self.tome_insert_layers)
+                            self._last_tome_keep_ratios_exp = [None] * len(self.tome_insert_layers)
+                        
+                        # Store keep ratios for this ToMe block
+                        self._last_tome_keep_ratios[tome_idx] = hard_keep_ratio
+                        self._last_tome_keep_ratios_exp[tome_idx] = exp_keep_ratio
+                        
+                        # Update mask and lengths
+                        if new_mask_1d is not None:
+                            tome_mask_1d = new_mask_1d
+                            if lengths is not None:
+                                # Update lengths based on new mask
+                                lengths = new_mask_1d.sum(dim=1).long()
+                            
+                            # Reconstruct attention_mask from new_mask_1d
+                            if attention_mask is not None:
+                                batch_size, new_seq_len, embed_dim = x.shape
+                                # Create new attention mask: [B, 1, T', T']
+                                new_attention_mask = torch.zeros(
+                                    batch_size, 1, new_seq_len, new_seq_len,
+                                    device=x.device, dtype=attention_mask.dtype
+                                )
+                                # Set padding positions to -inf
+                                for b in range(batch_size):
+                                    valid_len = int(lengths[b].item()) if lengths is not None else new_seq_len
+                                    if valid_len < new_seq_len:
+                                        new_attention_mask[b, :, :, valid_len:] = float("-inf")
+                                        new_attention_mask[b, :, valid_len:, :] = float("-inf")
+                                attention_mask = new_attention_mask
+                            
+                            # Reset position_bias to None so it will be recomputed with new sequence length
+                            # This is important for WavLM which uses relative position embeddings
+                            if position_bias is not None:
+                                position_bias = None
 
         if not self.layer_norm_first:
             x = self.layer_norm(x)
@@ -1101,6 +1373,7 @@ class Transformer(Module):
         num_layers: Optional[int] = None,
         position_bias: Optional[Tensor] = None,
         current_iter: Optional[int] = None,
+        lengths: Optional[Tensor] = None,
     ) -> List[Tensor]:
         if num_layers is not None:
             if not 0 < num_layers <= len(self.layers):
@@ -1111,8 +1384,56 @@ class Transformer(Module):
         
         ret.append(x)
         
-        for layer in self.layers:
+        # Convert attention_mask to 1D mask format for ToMe if needed
+        tome_mask_1d = None
+        if attention_mask is not None and lengths is not None:
+            batch_size, _, seq_len, _ = attention_mask.shape
+            tome_mask_1d = torch.arange(seq_len, device=lengths.device).expand(batch_size, seq_len) < lengths[:, None]
+        
+        for layer_idx, layer in enumerate(self.layers):
             x, position_bias = layer(x, attention_mask, position_bias=position_bias, current_iter=current_iter)
+            
+            # Apply ToMe packing after specified layers
+            if self.tome_blocks is not None and layer_idx in self.tome_insert_layers:
+                tome_idx = self.tome_insert_layers.index(layer_idx)
+                if tome_idx < len(self.tome_blocks):
+                    tome_block = self.tome_blocks[tome_idx]
+                    if tome_block is not None:
+                        x_packed, new_mask_1d, tome_info = tome_block(x, attn_mask=tome_mask_1d)
+                        x = x_packed
+                        
+                        # Store keep ratios for FLOPs calculation
+                        exp_keep_ratio = float(tome_info.get('avg_keep_ratio_exp', 1.0))
+                        hard_keep_ratio = float(tome_info.get('avg_keep_ratio_hard', 1.0))
+                        
+                        if self._last_tome_keep_ratios is None:
+                            self._last_tome_keep_ratios = [None] * len(self.tome_insert_layers)
+                            self._last_tome_keep_ratios_exp = [None] * len(self.tome_insert_layers)
+                        
+                        self._last_tome_keep_ratios[tome_idx] = hard_keep_ratio
+                        self._last_tome_keep_ratios_exp[tome_idx] = exp_keep_ratio
+                        if new_mask_1d is not None:
+                            tome_mask_1d = new_mask_1d
+                            if lengths is not None:
+                                lengths = new_mask_1d.sum(dim=1).long()
+                            # Reconstruct attention_mask
+                            if attention_mask is not None:
+                                batch_size, new_seq_len, embed_dim = x.shape
+                                new_attention_mask = torch.zeros(
+                                    batch_size, 1, new_seq_len, new_seq_len,
+                                    device=x.device, dtype=attention_mask.dtype
+                                )
+                                for b in range(batch_size):
+                                    valid_len = int(lengths[b].item()) if lengths is not None else new_seq_len
+                                    if valid_len < new_seq_len:
+                                        new_attention_mask[b, :, :, valid_len:] = float("-inf")
+                                        new_attention_mask[b, :, valid_len:, :] = float("-inf")
+                                attention_mask = new_attention_mask
+                            
+                            # Reset position_bias to None so it will be recomputed with new sequence length
+                            if position_bias is not None:
+                                position_bias = None
+            
             ret.append(x)
             if num_layers is not None and len(ret) >= num_layers:
                 return ret
@@ -1128,7 +1449,95 @@ class Transformer(Module):
         num_params = sum(p.numel() for p in self.pos_conv_embed.parameters()) + self.pos_conv_embed.embed_dim * 2
         for layer in self.layers:
             num_params += layer.get_num_params()
+        
+        # Add ToMe blocks parameters if present
+        if self.tome_blocks is not None:
+            for tome_block in self.tome_blocks:
+                if tome_block is not None:
+                    num_params += sum(p.numel() for p in tome_block.parameters())
+        
         return num_params
+    
+    def get_tome_keep_ratios(self, use_expected: bool = True) -> Optional[List[float]]:
+        """Get keep ratios from last forward pass.
+        
+        Args:
+            use_expected: If True, use expected keep ratio (training mode).
+                         If False, use hard keep ratio (eval mode).
+        
+        Returns:
+            List of keep ratios, or None if not available.
+        """
+        if self._last_tome_keep_ratios is None:
+            return None
+        
+        if use_expected and self._last_tome_keep_ratios_exp is not None:
+            # Filter out None values
+            ratios = [r for r in self._last_tome_keep_ratios_exp if r is not None]
+            return ratios if ratios else None
+        else:
+            # Filter out None values
+            ratios = [r for r in self._last_tome_keep_ratios if r is not None]
+            return ratios if ratios else None
+    
+    def get_num_flops(self, batch_size: int, sequence_length: int, tome_keep_ratios: Optional[List[float]] = None, auto_use_last_ratios: bool = True) -> int:
+        """Compute FLOPs for transformer considering pruning and ToMe.
+        
+        Args:
+            batch_size: Batch size.
+            sequence_length: Initial sequence length (in tokens).
+            tome_keep_ratios: List of keep ratios after each ToMe block (one per block).
+                             If None and auto_use_last_ratios=True, will try to use keep ratios
+                             from last forward pass (useful in training with dynamic ToMe).
+                             If None and auto_use_last_ratios=False, assumes no ToMe packing.
+            auto_use_last_ratios: If True and tome_keep_ratios is None, automatically use
+                                 keep ratios from last forward pass if available.
+            
+        Returns:
+            Number of FLOPs (floating point operations).
+        """
+        total_flops = 0
+        current_seq_len = sequence_length
+        embed_dim = self.pos_conv_embed.embed_dim
+        
+        # Auto-detect keep ratios from last forward pass if not provided
+        if tome_keep_ratios is None and auto_use_last_ratios:
+            last_ratios = self.get_tome_keep_ratios(use_expected=self.training)
+            if last_ratios is not None:
+                tome_keep_ratios = last_ratios
+        
+        # Positional embedding FLOPs
+        # Conv1d with groups: similar to regular conv but with groups
+        # Approximate: B * T * embed_dim * kernel_size / groups
+        pos_conv_kernel = self.pos_conv_embed.kernel_size
+        pos_conv_groups = self.pos_conv_embed.conv.groups
+        pos_conv_flops = batch_size * sequence_length * embed_dim * pos_conv_kernel // pos_conv_groups
+        total_flops += int(pos_conv_flops)
+        
+        # GELU after pos_conv: ~6 ops per element
+        total_flops += 6 * batch_size * sequence_length * embed_dim
+        
+        # Initial layer norm
+        total_flops += 2 * batch_size * sequence_length * embed_dim
+        
+        # Apply layers with ToMe packing
+        tome_idx = 0
+        for layer_idx, layer in enumerate(self.layers):
+            # Compute FLOPs for this layer with current sequence length
+            total_flops += layer.get_num_flops(batch_size, current_seq_len)
+            
+            # Apply ToMe packing after this layer if configured
+            if self.tome_blocks is not None and layer_idx in self.tome_insert_layers:
+                if tome_keep_ratios is not None and tome_idx < len(tome_keep_ratios):
+                    # Update sequence length based on ToMe keep ratio
+                    current_seq_len = int(current_seq_len * tome_keep_ratios[tome_idx])
+                tome_idx += 1
+        
+        # Final layer norm (if not layer_norm_first)
+        if not self.layer_norm_first:
+            total_flops += 2 * batch_size * current_seq_len * embed_dim
+        
+        return int(total_flops)
     
     def prune(self):
         new_config = defaultdict(list)
@@ -1199,7 +1608,7 @@ class Encoder(Module):
         current_iter: Optional[int] = None,
     ) -> Tensor:
         x, mask = self._preprocess(features, lengths)
-        x = self.transformer(x, attention_mask=mask, current_iter=current_iter)
+        x = self.transformer(x, attention_mask=mask, current_iter=current_iter, lengths=lengths)
         return x
 
     def extract_features(
@@ -1210,7 +1619,10 @@ class Encoder(Module):
         current_iter: Optional[int] = None,
     ) -> List[Tensor]:
         x, masks = self._preprocess(features, lengths)
-        interm = self.transformer.get_intermediate_outputs(x, attention_mask=masks, num_layers=num_layers, current_iter=current_iter)
+        interm = self.transformer.get_intermediate_outputs(
+            x, attention_mask=masks, num_layers=num_layers, 
+            current_iter=current_iter, lengths=lengths
+        )
         # return [x] + interm
         return interm
     
@@ -1226,6 +1638,34 @@ class Encoder(Module):
         feature_projection_size = self.feature_projection.get_num_params(in_features)
         transformer_size = self.transformer.get_num_params()
         return feature_projection_size + transformer_size
+    
+    def get_num_flops(self, batch_size: int, sequence_length: int, in_features: int, tome_keep_ratios: Optional[List[float]] = None, auto_use_last_ratios: bool = True) -> int:
+        """Calculate FLOPs considering pruning and ToMe.
+        
+        Args:
+            batch_size: Batch size.
+            sequence_length: Input sequence length (after feature extractor).
+            in_features: Input feature dimension.
+            tome_keep_ratios: List of keep ratios after each ToMe block.
+                             If None and auto_use_last_ratios=True, will try to use keep ratios
+                             from last forward pass (useful in training with dynamic ToMe).
+            auto_use_last_ratios: If True and tome_keep_ratios is None, automatically use
+                                 keep ratios from last forward pass if available.
+        
+        Returns:
+            Number of FLOPs (floating point operations).
+        """
+        # Feature projection FLOPs
+        feature_proj_flops = self.feature_projection.get_num_flops(batch_size, sequence_length, in_features)
+        
+        # Transformer FLOPs (including ToMe effects)
+        transformer_flops = self.transformer.get_num_flops(
+            batch_size, sequence_length, 
+            tome_keep_ratios=tome_keep_ratios,
+            auto_use_last_ratios=auto_use_last_ratios
+        )
+        
+        return int(feature_proj_flops + transformer_flops)
     
     def prune(self, conv_out_index):
         """In-place pruning of submodules."""
@@ -1536,6 +1976,7 @@ def _get_wavlm_encoder(
     prune_feed_forward_layer: bool = False,
     use_layerwise_prune: str = False,    # e.g. 5-12
     hard_concrete_config: Optional[dict] = None,
+    tome_config: Optional[dict] = None,  # ToMe packing configuration
 ) -> Encoder:
     """
     Construct encoder for WavLM model :cite:`chen2022wavlm`. The structure of the encoder and most of the argments are
@@ -1618,12 +2059,49 @@ def _get_wavlm_encoder(
                 embed_dim=embed_dim,
             )
         )
+    
+    # Setup ToMe blocks if configured
+    tome_blocks = None
+    tome_insert_layers = []
+    if tome_config is not None and TOME_AVAILABLE:
+        tome_enabled = tome_config.get('enabled', False)
+        if tome_enabled:
+            tome_insert_layers = tome_config.get('insert_layers', [])  # e.g., [3, 6, 9] to insert after layers 3, 6, 9
+            tome_params = tome_config.get('params', {})
+            
+            if len(tome_insert_layers) > 0:
+                tome_blocks_list = []
+                for _ in tome_insert_layers:
+                    tome_block = SpeechToMePackingBlock(
+                        dim=embed_dim,
+                        match_dim=tome_params.get('match_dim', 128),
+                        window_size=tome_params.get('window_size', 16),
+                        candidate_ratio=tome_params.get('candidate_ratio', 0.8),
+                        keep_ratio=tome_params.get('keep_ratio', 0.7),  # None for dynamic budget
+                        sim_threshold=tome_params.get('sim_threshold', 0.0),
+                        score_sim_weight=tome_params.get('score_sim_weight', 1.0),
+                        score_imp_weight=tome_params.get('score_imp_weight', 0.5),
+                        alpha_scale=tome_params.get('alpha_scale', 5.0),
+                        # Dynamic budget parameters
+                        pack_in_train=tome_params.get('pack_in_train', False),
+                        gate_temperature=tome_params.get('gate_temperature', 2/3),
+                        gate_limit_l=tome_params.get('gate_limit_l', -0.1),
+                        gate_limit_r=tome_params.get('gate_limit_r', 1.1),
+                        gate_mlp_hidden=tome_params.get('gate_mlp_hidden', 64),
+                        gate_init_bias=tome_params.get('gate_init_bias', -2.0),
+                        l0_reg_weight=tome_params.get('l0_reg_weight', 0.0),
+                    )
+                    tome_blocks_list.append(tome_block)
+                tome_blocks = nn.ModuleList(tome_blocks_list)
+    
     transformer = Transformer(
         pos_conv_embed=pos_conv,
         dropout=dropout,
         layers=encoder_layers,
         layer_norm_first=not layer_norm_first,
         layer_drop=layer_drop,
+        tome_blocks=tome_blocks,
+        tome_insert_layers=tome_insert_layers,
     )
     return Encoder(feature_projection, transformer)
 

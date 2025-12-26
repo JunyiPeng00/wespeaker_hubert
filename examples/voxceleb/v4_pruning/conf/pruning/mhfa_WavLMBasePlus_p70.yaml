@@ -115,3 +115,25 @@ hard_concrete_config:
 min_temperature: 0.1           
 temperature_decay: 0.95        
 temperature_decay_freq: 100
+
+# ToMe (Token Merging) configuration for length-based compression
+# ToMe reduces sequence length by merging similar tokens, reducing FLOPs
+tome_config:
+  enabled: False  # Set to True to enable ToMe
+  insert_layers: [3, 6]  # Insert ToMe blocks after these layer indices (0-based)
+  params:
+    # Option 1: Fixed budget mode (keep_ratio is fixed)
+    keep_ratio: 0.7  # Keep 70% of tokens (merge 30%)
+    # Option 2: Dynamic budget mode (network learns to decide)
+    # keep_ratio: null  # Use dynamic budget (requires additional params below)
+    
+    # Training mode: soft merge (differentiable) vs hard pack (truly shorten sequence)
+    pack_in_train: False  # False = soft merge (default), True = hard pack
+    
+    # Dynamic budget mode parameters (only used when keep_ratio is null)
+    gate_init_bias: -2.0  # Initial bias for gate (negative = encourage merging)
+    gate_temperature: 1.0  # Temperature for gate sampling
+    gate_limit_l: 0.0  # Lower bound for gate output
+    gate_limit_r: 1.0  # Upper bound for gate output
+    gate_mlp_hidden: 64  # Hidden dimension for gate MLP
+    l0_reg_weight: 0.01  # L0 regularization weight for gate

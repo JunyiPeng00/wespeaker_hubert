@@ -49,9 +49,11 @@ def train(config='conf/config.yaml', **kwargs):
 
     # pruning related hyper-parameters
     use_pruning = configs.get("use_pruning_loss", False)
+    use_flops_aware = configs.get("use_flops_aware", False)  # FLOPs-aware compression
     if use_pruning:
         prune_defaults = {
             'use_pruning_loss': False,
+            'use_flops_aware': False,  # Default to parameter-aware
             'target_sparsity': 0.5,
             'sparsity_warmup_epochs': 7,
             'sparsity_schedule': 'cosine',
@@ -63,6 +65,9 @@ def train(config='conf/config.yaml', **kwargs):
             'min_temperature': 0.1,
             'temperature_decay': 0.95,
             'temperature_decay_freq': 100,
+            # FLOPs-aware specific defaults
+            'flops_batch_size': None,  # None = infer from batch
+            'flops_input_length': None,  # None = infer from input
         }
         for k, v in prune_defaults.items():
             configs.setdefault(k, v)
@@ -167,10 +172,29 @@ def train(config='conf/config.yaml', **kwargs):
             logger.info(f"temperature: {hard_concrete_config['temperature']}")
             logger.info(f"min_temperature: {hard_concrete_config['min_temperature']}")
         
+        # Prepare tome_config for length-based compression (ToMe)
+        tome_config = configs.get('tome_config', None)
+        if tome_config is not None and tome_config.get('enabled', False):
+            if rank == 0:
+                logger.info(f"<== ToMe (Token Merging) Configuration ==>")
+                logger.info(f"enabled: {tome_config.get('enabled', False)}")
+                logger.info(f"insert_layers: {tome_config.get('insert_layers', [])}")
+                if 'params' in tome_config:
+                    params = tome_config['params']
+                    keep_ratio = params.get('keep_ratio', None)
+                    if keep_ratio is not None:
+                        logger.info(f"keep_ratio: {keep_ratio} (fixed budget mode)")
+                    else:
+                        logger.info(f"keep_ratio: null (dynamic budget mode)")
+                    logger.info(f"pack_in_train: {params.get('pack_in_train', False)}")
+        else:
+            tome_config = None
+        
         frontend = frontend_class_dict[frontend_type](
             **configs['dataset_args'][frontend_args],
             sample_rate=configs['dataset_args']['resample_rate'],
-            hard_concrete_config=hard_concrete_config)
+            hard_concrete_config=hard_concrete_config,
+            tome_config=tome_config)
         configs['model_args']['feat_dim'] = frontend.output_size()
         model = get_speaker_model(configs['model'])(**configs['model_args'])
         model.add_module("frontend", frontend)
@@ -268,14 +292,96 @@ def train(config='conf/config.yaml', **kwargs):
     optimizer_reg = None
     # Build pruning param groups when enabled, else fallback to quantization-aware or normal optimizer
     if use_pruning:
-        # Track original frontend params for sparsity stats if possible
-        try:
-            configs['original_ssl_num_params'] = sum(param.numel() for param in model.module.frontend.parameters())
-        except Exception:
+        if use_flops_aware:
+            # FLOPs-aware compression: calculate baseline FLOPs
             try:
-                configs['original_ssl_num_params'] = sum(param.numel() for param in model.frontend.parameters())
+                # Get batch size and input length for FLOPs calculation
+                # flops_batch_size should equal batch_size for consistency
+                # (baseline FLOPs and training FLOPs should use the same batch size)
+                flops_batch_size = configs.get('flops_batch_size', batch_size)
+                # If explicitly set, use it; otherwise use dataloader batch_size
+                if flops_batch_size != batch_size and rank == 0:
+                    logger.warning(
+                        f"flops_batch_size ({flops_batch_size}) != batch_size ({batch_size}). "
+                        f"This may cause inconsistency in FLOPs calculation."
+                    )
+                num_frms = configs['dataset_args'].get('num_frms', 200)
+                frame_shift = configs['dataset_args']['huggingface_args'].get('frame_shift', 20)
+                frame_length = configs['dataset_args']['huggingface_args'].get('frame_length', 20)
+                resample_rate = configs['dataset_args'].get('resample_rate', 16000)
+                chunk_len = ((num_frms - 1) * frame_shift +
+                         frame_length) * resample_rate // 1000
+                flops_input_length = configs.get('flops_input_length', chunk_len)
+                
+                # If not specified, try to infer from dataset or use default
+                if flops_input_length is None:
+                    # Try to get from dataset args (sample rate * duration)
+                    # Default: assume 16kHz sample rate, 1 second audio
+                    flops_input_length = configs['dataset_args'].get('resample_rate', 16000) * 1
+                
+                # Calculate baseline FLOPs (without pruning/ToMe effects)
+                # Use keep_ratios=None or all 1.0 to get baseline
+                try:
+                    # Try to get number of ToMe blocks to set correct keep_ratios
+                    num_tome_blocks = 0
+                    try:
+                        if hasattr(model.module.frontend, 'upstream'):
+                            if hasattr(model.module.frontend.upstream, 'encoder'):
+                                if hasattr(model.module.frontend.upstream.encoder, 'transformer'):
+                                    tome_blocks = model.module.frontend.upstream.encoder.transformer.tome_blocks
+                                    if tome_blocks is not None:
+                                        num_tome_blocks = len(tome_blocks)
+                    except Exception:
+                        pass
+                    
+                    # Calculate baseline: use all 1.0 keep ratios or None
+                    if num_tome_blocks > 0:
+                        baseline_flops = model.module.frontend.get_num_flops(
+                            flops_batch_size, 
+                            flops_input_length,
+                            tome_keep_ratios=[1.0] * num_tome_blocks,
+                            auto_use_last_ratios=False
+                        )
+                    else:
+                        # No ToMe blocks, just use default
+                        baseline_flops = model.module.frontend.get_num_flops(
+                            flops_batch_size, 
+                            flops_input_length,
+                            tome_keep_ratios=None,
+                            auto_use_last_ratios=False
+                        )
+                    
+                    configs['original_ssl_num_flops'] = float(baseline_flops)
+                    if rank == 0:
+                        logger.info(f"<== FLOPs-aware Compression ==>")
+                        logger.info(f"Baseline FLOPs: {baseline_flops/1e9:.2f} GFLOPs")
+                        logger.info(f"FLOPs batch size: {flops_batch_size}, input length: {flops_input_length}")
+                        if num_tome_blocks > 0:
+                            logger.info(f"Number of ToMe blocks: {num_tome_blocks}")
+                except Exception as e:
+                    if rank == 0:
+                        logger.warning(f"Failed to calculate baseline FLOPs: {e}, falling back to parameter-aware")
+                        import traceback
+                        logger.warning(traceback.format_exc())
+                    use_flops_aware = False
+                    configs['use_flops_aware'] = False
+            except Exception as e:
+                if rank == 0:
+                    logger.warning(f"Error in FLOPs-aware setup: {e}, falling back to parameter-aware")
+                use_flops_aware = False
+                configs['use_flops_aware'] = False
+        
+        if not use_flops_aware:
+            # Parameter-aware compression (original behavior)
+            # Track original frontend params for sparsity stats if possible
+            try:
+                configs['original_ssl_num_params'] = sum(param.numel() for param in model.module.frontend.parameters())
             except Exception:
-                configs['original_ssl_num_params'] = 1.0
+                try:
+                    configs['original_ssl_num_params'] = sum(param.numel() for param in model.frontend.parameters())
+                except Exception:
+                    configs['original_ssl_num_params'] = 1.0
+        
         reg_lr = configs.get('initial_reg_lr', 2e-2)
         p_groups, lambda_pair = make_pruning_param_groups(
             ddp_model,
@@ -295,6 +401,11 @@ def train(config='conf/config.yaml', **kwargs):
     if rank == 0:
         logger.info("<== Optimizer ==>")
         logger.info("optimizer is: " + configs['optimizer'])
+        if use_pruning:
+            if use_flops_aware:
+                logger.info("Compression mode: FLOPs-aware")
+            else:
+                logger.info("Compression mode: Parameter-aware")
 
     # scheduler
     configs['scheduler_args']['num_epochs'] = configs['num_epochs']

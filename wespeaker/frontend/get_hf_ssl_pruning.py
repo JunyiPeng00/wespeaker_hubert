@@ -16,7 +16,7 @@
 
 import contextlib
 import os
-from typing import Mapping, Any, Tuple, Optional
+from typing import Mapping, Any, Tuple, Optional, List
 
 import torch
 import torch.nn as nn
@@ -68,6 +68,7 @@ class HuggingfaceFrontend(nn.Module):
         frame_length: int = 20,
         sample_rate: int = 16000,
         hard_concrete_config: Optional[dict] = None,
+        tome_config: Optional[dict] = None,  # ToMe packing configuration
     ):
         """Initializes the HuggingfaceFrontend.
 
@@ -109,7 +110,8 @@ class HuggingfaceFrontend(nn.Module):
         self.upstream, self.upstream_config = self._build_upstream(
             upstream_ckpt_path=converted_model_path,
             pruning_units=pruning_units,
-            hard_concrete_config=hard_concrete_config
+            hard_concrete_config=hard_concrete_config,
+            tome_config=tome_config,
         )
 
         # 3. Freeze weights if required.
@@ -124,7 +126,7 @@ class HuggingfaceFrontend(nn.Module):
             self.upstream.train()
 
     def _build_upstream(
-        self, upstream_ckpt_path: str, pruning_units: str, hard_concrete_config: Optional[dict] = None
+        self, upstream_ckpt_path: str, pruning_units: str, hard_concrete_config: Optional[dict] = None, tome_config: Optional[dict] = None
     ) -> Tuple[nn.Module, Mapping[str, Any]]:
         """Builds the upstream model from a WeSpeaker format checkpoint.
 
@@ -133,6 +135,7 @@ class HuggingfaceFrontend(nn.Module):
             pruning_units: A comma-separated string specifying parts of the
                 model to prune (e.g., "head,ffnlayer").
             hard_concrete_config: Configuration for HardConcrete pruning.
+            tome_config: Configuration for ToMe (Token Merging) packing.
 
         Returns:
             A tuple containing:
@@ -165,7 +168,7 @@ class HuggingfaceFrontend(nn.Module):
 
         # Determine which model class to use based on the model name
         if "wavlm" in self.upstream_name.lower():
-            model = wavlm_model(**config, hard_concrete_config=hard_concrete_config)
+            model = wavlm_model(**config, hard_concrete_config=hard_concrete_config, tome_config=tome_config)
         else:
             model = wav2vec2_model(**config, hard_concrete_config=hard_concrete_config)
         
@@ -243,6 +246,23 @@ class HuggingfaceFrontend(nn.Module):
             Number of parameters in the model.
         """
         return self.upstream.get_num_params()
+    
+    def get_num_flops(self, batch_size: int, input_length: int, tome_keep_ratios: Optional[List[float]] = None, auto_use_last_ratios: bool = True) -> int:
+        """Calculate FLOPs considering pruning and ToMe.
+        
+        Args:
+            batch_size: Batch size.
+            input_length: Input audio length (in samples).
+            tome_keep_ratios: List of keep ratios after each ToMe block.
+                             If None and auto_use_last_ratios=True, will try to use keep ratios
+                             from last forward pass (useful in training with dynamic ToMe).
+            auto_use_last_ratios: If True and tome_keep_ratios is None, automatically use
+                                 keep ratios from last forward pass if available.
+        
+        Returns:
+            Number of FLOPs (floating point operations).
+        """
+        return self.upstream.get_num_flops(batch_size, input_length, tome_keep_ratios=tome_keep_ratios, auto_use_last_ratios=auto_use_last_ratios)
 
     def prune(self) -> nn.Module:
         """Applies pruning to the upstream model."""
@@ -264,7 +284,8 @@ def main():
         'name': 'wavlm_base_plus',  # Can be: hubert_base, wav2vec2_base, wavlm_base, etc.
         # 'path_or_url': '/scratch/project_465002053/junyi/sv/wespeaker_dev/wespeaker_hubert/examples/voxceleb/v4_pruning/convert/wavlm_base.hf.pth',  # Directory for model cache
         # 'path_or_url': '/scratch/project_465002053/junyi/sv/wespeaker_dev/wespeaker_hubert/examples/voxceleb/v4_pruning/exp/pruning/mhfa_WavLMBasePlus_p70_e/pruned_model/pytorch_model.bin',  # Directory for model cache
-        'path_or_url':'/scratch/project_465002053/junyi/sv/wespeaker_dev/wespeaker_hubert/examples/voxceleb/v4_pruning/exp/qua2pruning/mhfa_WavLMBasePlus_p70_qua/pruned_model/pytorch_model.bin',
+        # 'path_or_url':'/scratch/project_465002053/junyi/sv/wespeaker_dev/wespeaker_hubert/examples/voxceleb/v4_pruning/exp/qua2pruning/mhfa_WavLMBasePlus_p70_qua/pruned_model/pytorch_model.bin',
+        'path_or_url':'/Users/pengjy/Interspeech2026/DynamicPruning/wespeaker_hubert/examples/voxceleb/v4_pruning/convert/wavlm_base.hf.pth',
         'pruning_units': '',  # No pruning in this example
     }
     
@@ -296,7 +317,7 @@ def main():
     
     flops, macs, params  = get_model_profile(
         model=net.eval(),
-        input_shape=(1, 16000*4),  # Change according to your model input
+        input_shape=(1, 16000*1),  # Change according to your model input
         print_profile=True,
         detailed=True,                 # Print each layer
         module_depth=-1,               # Control print depth

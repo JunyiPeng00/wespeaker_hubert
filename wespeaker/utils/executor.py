@@ -19,7 +19,8 @@ import torch
 import torchnet as tnt
 from wespeaker.dataset.dataset_utils import apply_cmvn, spec_aug
 from wespeaker.utils.prune_utils import (
-    pruning_loss, 
+    pruning_loss,
+    flops_pruning_loss,
     get_progressive_sparsity, 
     get_learning_rate_with_plateau_decay,
 )
@@ -44,16 +45,27 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
 
     # Pruning configuration
     use_pruning = configs.get('use_pruning_loss', False)
+    use_flops_aware = configs.get('use_flops_aware', False)  # FLOPs-aware compression
     if use_pruning:
         target_sp = configs.get('target_sparsity', 0.5)
         l1, l2 = configs.get('lambda_pair', (1.0, 5.0))
-        orig_params = float(configs.get('original_ssl_num_params', 1.0))
         warmup_epochs = configs.get('sparsity_warmup_epochs', 5)
         sparsity_schedule = configs.get('sparsity_schedule', 'cosine')
         min_sparsity = configs.get('min_sparsity', 0.0)
         total_epochs = configs.get('num_epochs', 100)
         total_iters = total_epochs * epoch_iter
         plateau_start_ratio = configs.get('plateau_start_ratio', 0.9)
+        
+        if use_flops_aware:
+            # FLOPs-aware compression
+            orig_flops = float(configs.get('original_ssl_num_flops', 1.0))
+            # Get batch size and input length for FLOPs calculation
+            # Try to get from configs, otherwise use defaults
+            flops_batch_size = configs.get('flops_batch_size', None)
+            flops_input_length = configs.get('flops_input_length', None)
+        else:
+            # Parameter-aware compression (original behavior)
+            orig_params = float(configs.get('original_ssl_num_params', 1.0))
 
     frontend_type = configs['dataset_args'].get('frontend', 'fbank')
     # LSQ controller removed - LSQ quantization is disabled
@@ -119,10 +131,54 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
                     plateau_start_ratio=plateau_start_ratio,
                 )
 
-            # Expected current params; rely on frontend for pruning stats when available
-            cur_params = model.module.frontend.get_num_params()
-
-            prune_reg, exp_sp = pruning_loss(cur_params, orig_params, target_sp_cur, l1, l2)
+            # Calculate current compression metric (FLOPs or params)
+            if use_flops_aware:
+                # FLOPs-aware compression
+                # Get batch size and input length from current batch
+                if flops_batch_size is None or flops_input_length is None:
+                    # Infer from current batch
+                    if frontend_type == 'fbank' or str(frontend_type).startswith('lfcc'):
+                        # For feature-based frontend, estimate from feature shape
+                        flops_batch_size_cur = features.shape[0] if 'features' in locals() else 1
+                        # Estimate input length: features are typically downsampled
+                        # Assume 20ms frame shift, so input_length = features.shape[1] * 0.02 * sample_rate
+                        flops_input_length_cur = features.shape[1] * 20 * 16 if 'features' in locals() else 16000
+                    else:
+                        # For waveform-based frontend
+                        flops_batch_size_cur = wavs.shape[0] if 'wavs' in locals() else 1
+                        flops_input_length_cur = wavs.shape[1] if 'wavs' in locals() else 16000
+                else:
+                    flops_batch_size_cur = flops_batch_size
+                    flops_input_length_cur = flops_input_length
+                
+                # Calculate current FLOPs (auto-uses last ToMe keep ratios if available)
+                # This will automatically use the keep ratios from the last forward pass
+                try:
+                    cur_flops = model.module.frontend.get_num_flops(
+                        flops_batch_size_cur, 
+                        flops_input_length_cur,
+                        auto_use_last_ratios=True
+                    )
+                except Exception:
+                    # Fallback: use baseline FLOPs if auto-detection fails
+                    cur_flops = model.module.frontend.get_num_flops(
+                        flops_batch_size_cur, 
+                        flops_input_length_cur,
+                        tome_keep_ratios=None,
+                        auto_use_last_ratios=False
+                    )
+                prune_reg, exp_sp = flops_pruning_loss(
+                    float(cur_flops), 
+                    orig_flops, 
+                    target_sp_cur, 
+                    l1, 
+                    l2
+                )
+            else:
+                # Parameter-aware compression (original behavior)
+                cur_params = model.module.frontend.get_num_params()
+                prune_reg, exp_sp = pruning_loss(cur_params, orig_params, target_sp_cur, l1, l2)
+            
             total_loss = cls_loss + prune_reg
         else:
             prune_reg, exp_sp, target_sp_cur = 0.0, None, None
