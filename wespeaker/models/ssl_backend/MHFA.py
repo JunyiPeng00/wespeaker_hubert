@@ -21,6 +21,8 @@ Author: Junyi Peng, Oldrich Plchot, Themos Stafylakis, Ladislav Mosner,
 Link: https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=10022775
 """
 
+from typing import Optional
+
 import torch
 import torch.nn as nn
 
@@ -73,17 +75,30 @@ class SSL_BACKEND_MHFA(nn.Module):
         # Define a fully connected layer for final output
         self.pooling_fc = nn.Linear(self.head_nb * self.cmp_dim, self.ous_dim)
 
-    def get_frame_att_emb(self, x):
+    def get_frame_att_emb(self, x, mask: Optional[torch.Tensor] = None):
+        """mask: (B, L, T) with 1=valid, 0=pad. When ToMe pack is on, exclude padded
+        positions in both layer aggregation and time pooling."""
         # Input x has shape: [Batch, Dim, Frame_len, Nb_Layer]
         x = GradMultiply.apply(x, self.feature_grad_mult)
 
-        # Compute the key by taking a weighted sum of input across layers
-        k = torch.sum(x.mul(nn.functional.softmax(self.weights_k, dim=-1)),
-                      dim=-1).transpose(1, 2)
+        # Layer weights: (L,) -> (1, 1, 1, L) for broadcasting with (B, D, T, L)
+        w_k = nn.functional.softmax(self.weights_k, dim=-1).view(1, 1, 1, -1)
+        w_v = nn.functional.softmax(self.weights_v, dim=-1).view(1, 1, 1, -1)
 
-        # Compute the value in a similar fashion
-        v = torch.sum(x.mul(nn.functional.softmax(self.weights_v, dim=-1)),
-                      dim=-1).transpose(1, 2)
+        if mask is not None:
+            # mask (B, L, T): for each (b, t), only layers l with mask[b,l,t]==1 are valid.
+            # Exclude padded layers: renormalize weights over valid layers per (b, t).
+            # Broadcast: mask (B, L, T) -> (B, 1, T, L) to match x (B, D, T, L)
+            layer_mask = mask.permute(0, 2, 1).unsqueeze(1)  # (B, 1, T, L)
+            w_k_masked = w_k * layer_mask
+            w_k_masked = w_k_masked / (w_k_masked.sum(dim=-1, keepdim=True) + 1e-9)
+            w_v_masked = w_v * layer_mask
+            w_v_masked = w_v_masked / (w_v_masked.sum(dim=-1, keepdim=True) + 1e-9)
+            k = (x * w_k_masked).sum(dim=-1).transpose(1, 2)   # (B, T, D)
+            v = (x * w_v_masked).sum(dim=-1).transpose(1, 2)
+        else:
+            k = (x * w_k).sum(dim=-1).transpose(1, 2)
+            v = (x * w_v).sum(dim=-1).transpose(1, 2)
 
         # Pass the keys and values through compression linear layers
         k = self.cmp_linear_k(k)
@@ -92,36 +107,42 @@ class SSL_BACKEND_MHFA(nn.Module):
         # Compute attention weights using compressed keys
         att_k = self.att_head(k)  # B, T, H
 
+        # Time-axis mask: use last layer's valid length when pack is on (mask is (B, L, T))
+        if mask is not None:
+            frame_mask = mask[:, -1, :]  # (B, T) — valid frames of the last layer
+        else:
+            frame_mask = None
+
+        # Softmax over time (only over valid frames when frame_mask is set)
+        if frame_mask is not None:
+            att_k = att_k.masked_fill(frame_mask.unsqueeze(-1) == 0, float("-inf"))
+        att_w = nn.functional.softmax(att_k, dim=1)  # B, T, H
+        if frame_mask is not None:
+            att_w = att_w * frame_mask.unsqueeze(-1)
+            att_w = att_w / (att_w.sum(dim=1, keepdim=True) + 1e-9)
+
         # Adjust dimensions for computing attention output
         v = v.unsqueeze(-2)  # B, T, 1
 
-        # Compute attention output by taking weighted sum of values using softmaxed attention weights  # noqa
-        att_out = v.mul(nn.functional.softmax(
-            att_k, dim=1).unsqueeze(-1))  # [B, T, H, D]
+        # Weighted sum of values
+        att_out = v.mul(att_w.unsqueeze(-1))  # [B, T, H, D]
 
         return att_out
 
-    def get_frame_emb(self, x):
-
-        att_out = self.get_frame_att_emb(x)
-
-        # Average over heads [B, T, D]
+    def get_frame_emb(self, x, mask: Optional[torch.Tensor] = None):
+        att_out = self.get_frame_att_emb(x, mask)
         att_out_mean = att_out.mean(dim=2)
-
         return att_out_mean
 
-    def forward(self, x):
+    def forward(self, x, mask: Optional[torch.Tensor] = None):
+        att_out = self.get_frame_att_emb(x, mask)
 
-        att_out = self.get_frame_att_emb(x)
-
-        # Compute attention output by taking weighted sum of values using softmaxed attention weights  # noqa
+        # Sum over time; when mask is given, pad positions are already 0 in att_out
         pooling_outs = torch.sum(att_out, dim=1)
 
-        # Reshape the tensor before passing through the fully connected layer
         b, h, f = pooling_outs.shape
         pooling_outs = pooling_outs.reshape(b, -1)
 
-        # Pass through fully connected layer to get the final output
         outs = self.pooling_fc(pooling_outs)
 
         return outs

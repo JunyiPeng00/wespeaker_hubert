@@ -101,7 +101,7 @@ def extract(config='conf/config.yaml', **kwargs):
                     wavs = wavs.squeeze(1).float().to(device)  # (B,W)
                     wavs_len = torch.LongTensor([wavs.shape[1]]).repeat(
                         wavs.shape[0]).to(device)  # (B)
-                    features, _ = model.frontend(wavs, wavs_len)
+                    features, feats_mask = model.frontend(wavs, wavs_len)
 
                 # apply cmvn
                 if test_conf.get('cmvn', True):
@@ -111,8 +111,11 @@ def extract(config='conf/config.yaml', **kwargs):
                 if test_conf.get('spec_aug', False):
                     features = spec_aug(features, **test_conf['spec_aug_args'])
 
-                # Forward through model
-                outputs = model(features)  # embed or (embed_a, embed_b)
+                # Forward through model (pass mask when ToMe pack was used)
+                if feats_mask is not None:
+                    outputs = model(features, mask=feats_mask)
+                else:
+                    outputs = model(features)
                 embeds = outputs[-1] if isinstance(outputs, tuple) else outputs
                 embeds = embeds.cpu().detach().numpy()  # (B,F)
 

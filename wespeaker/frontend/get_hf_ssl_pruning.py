@@ -211,33 +211,68 @@ class HuggingfaceFrontend(nn.Module):
 
     def forward(
         self, input_wav: torch.Tensor, input_lengths: Optional[torch.LongTensor] = None, current_iter: Optional[int] = None
-    ) -> Tuple[torch.Tensor, None]:
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         """Performs the forward pass to extract features.
+
+        When ToMe pack is enabled, layer outputs can have different sequence
+        lengths. In that case we pad to max length and return a mask (B, L, T_max)
+        so the backend can mask invalid positions.
 
         Args:
             input_wav: A batch of input waveforms, shape (B, T).
             input_lengths: A batch of waveform lengths, shape (B,). This
                 argument is unused but maintained for API compatibility.
+            current_iter: Current training step (for dynamic ToMe).
 
         Returns:
-            A tuple containing:
-                - The extracted features, shape (B, D, F, L), where D is the
-                  feature dimension, F is the number of frames, and L is the
-                  number of layers.
-                - None, for API compatibility.
+            (layer_reps, mask):
+                - layer_reps: (B, D, F, L), where D=dim, F=frames, L=layers.
+                - mask: (B, L, T_max) with 1=valid, 0=pad; None when no pack or fixed length.
         """
-        # Ensure model is not running on excessively long inputs
         input_tensor = input_wav[:, : self._MAX_INPUT_SAMPLES]
 
         with torch.no_grad() if self.frozen else contextlib.nullcontext():
-            # ssl_hiddens is a tuple of tensors, one for each layer
-            ssl_hiddens, _ = self.upstream.extract_features(input_tensor, current_iter=current_iter)
+            out = self.upstream.extract_features(input_tensor, current_iter=current_iter)
+        # Support both 2-tuple (legacy) and 3-tuple (with per-layer lengths)
+        if len(out) == 2:
+            ssl_hiddens, _ = out
+            layer_lengths = None
+        else:
+            ssl_hiddens, _, layer_lengths = out
 
-        # Stack layer representations and reorder dimensions
-        # Original: (L, B, F, D) -> Stacked: (L, B, F, D)
-        # Permuted: (B, D, F, L) for downstream convenience
-        layer_reps = torch.stack(ssl_hiddens, dim=0).permute(1, 3, 2, 0)
-        return layer_reps, None
+        # Check if we have variable length across layers (ToMe pack)
+        need_mask = False
+        if layer_lengths is not None and len(layer_lengths) == len(ssl_hiddens):
+            max_t = max(h.shape[1] for h in ssl_hiddens)
+            min_t = min(h.shape[1] for h in ssl_hiddens)
+            need_mask = max_t != min_t
+
+        if not need_mask:
+            # Same length: stack and return as before
+            layer_reps = torch.stack(ssl_hiddens, dim=0).permute(1, 3, 2, 0)
+            return layer_reps, None
+
+        # Variable length: pad to max_T, then stack; build mask (B, L, T_max)
+        max_T = max(h.shape[1] for h in ssl_hiddens)
+        B, _, D = ssl_hiddens[0].shape
+        L = len(ssl_hiddens)
+        device = ssl_hiddens[0].device
+        dtype = ssl_hiddens[0].dtype
+        padded = []
+        for h in ssl_hiddens:
+            T = h.shape[1]
+            if T < max_T:
+                pad = torch.zeros(B, max_T - T, D, device=device, dtype=dtype)
+                h = torch.cat([h, pad], dim=1)
+            padded.append(h)
+        layer_reps = torch.stack(padded, dim=0).permute(1, 3, 2, 0)  # (B, D, T_max, L)
+
+        # mask[b, l, t] = 1 if t < layer_lengths[l][b]
+        mask = torch.zeros(B, L, max_T, device=device, dtype=dtype)
+        t_grid = torch.arange(max_T, device=device)
+        for l in range(L):
+            mask[:, l, :] = (t_grid.unsqueeze(0) < layer_lengths[l].unsqueeze(1)).to(dtype)
+        return layer_reps, mask
 
     def get_num_params(self) -> int:
         """Returns the total number of parameters in the upstream model.

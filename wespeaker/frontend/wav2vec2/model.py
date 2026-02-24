@@ -64,38 +64,24 @@ class Wav2Vec2Model(Module):
         lengths: Optional[Tensor] = None,
         num_layers: Optional[int] = None,
         current_iter: Optional[int] = None,
-    ) -> Tuple[List[Tensor], Optional[Tensor]]:
-        """Extract feature vectors from raw waveforms
+    ) -> Tuple[List[Tensor], Optional[Tensor], Optional[List[Tensor]]]:
+        """Extract feature vectors from raw waveforms.
 
-        This returns the list of outputs from the intermediate layers of
-        transformer block in encoder.
+        Returns the list of outputs from the intermediate layers of the
+        transformer. When ToMe pack is enabled, per-layer lengths are also
+        returned so the frontend can build a mask.
 
         Args:
-            waveforms (Tensor): Audio tensor of shape `(batch, frames)`.
-            lengths (Tensor or None, optional):
-                Indicates the valid length of each audio in the batch.
-                Shape: `(batch, )`.
-                When the ``waveforms`` contains audios with different durations,
-                by providing ``lengths`` argument, the model will compute
-                the corresponding valid output lengths and apply proper mask in
-                transformer attention layer.
-                If ``None``, it is assumed that the entire audio waveform
-                length is valid.
-            num_layers (int or None, optional):
-                If given, limit the number of intermediate layers to go through.
-                Providing `1` will stop the computation after going through one
-                intermediate layers. If not given, the outputs from all the
-                intermediate layers are returned.
+            waveforms: Audio tensor of shape (batch, frames).
+            lengths: Valid length per sample, shape (batch,). None = all valid.
+            num_layers: If set, limit number of layers to return.
+            current_iter: Current training step (for dynamic ToMe).
 
         Returns:
-            (List[Tensor], Optional[Tensor]):
-            List of Tensors
-                Features from requested layers.
-                Each Tensor is of shape: `(batch, time frame, feature dimension)`
-            Tensor or None
-                If ``lengths`` argument was provided, a Tensor of shape `(batch, )`
-                is returned.
-                It indicates the valid length in time axis of each feature Tensor.
+            (List[Tensor], Optional[Tensor], Optional[List[Tensor]]):
+            - Layer features, each (batch, time, dim).
+            - Final lengths (batch,) or None.
+            - Per-layer lengths: list of (batch,) tensors, or None when no ToMe pack.
         """
         if self.normalize_waveform:
             if lengths is not None:
@@ -106,17 +92,13 @@ class Wav2Vec2Model(Module):
             else:
                 waveforms = F.layer_norm(waveforms, waveforms.shape[-1:])
 
-        # cnn_start = time.time()
         x, lengths = self.feature_extractor(waveforms, lengths, current_iter)
-        # cnn_end = time.time()
-        # print(f'cnn elapsed: {cnn_end - cnn_start}')
         if self.feature_grad_mult != 1.0:
             x = components.GradMultiply.apply(x, self.feature_grad_mult)
-        # trans_start = time.time()
-        x = self.encoder.extract_features(x, lengths, num_layers, current_iter)   # (num_layers+1,), including the input
-        # trans_end = time.time()
-        # print(f'trans elapsed : {trans_end - trans_start}')
-        return x, lengths
+        interm, layer_lengths = self.encoder.extract_features(
+            x, lengths, num_layers, current_iter
+        )
+        return (interm, lengths, layer_lengths)
     
     def get_num_params(self):
         """Calculate the current size considering pruning.

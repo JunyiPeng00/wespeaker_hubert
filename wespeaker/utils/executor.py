@@ -86,7 +86,7 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
             wavs_len = torch.LongTensor([wavs.shape[1]]).repeat(
                 wavs.shape[0]).to(device)  # (B)
             with torch.cuda.amp.autocast(enabled=configs['enable_amp']):
-                features, _ = model.module.frontend(wavs, wavs_len, cur_iter)
+                features, feats_mask = model.module.frontend(wavs, wavs_len, cur_iter)
 
         with torch.cuda.amp.autocast(enabled=configs['enable_amp']):
             # apply cmvn
@@ -98,7 +98,11 @@ def run_epoch(dataloader, epoch_iter, model, criterion, optimizer, scheduler,
                 features = spec_aug(features,
                                     **configs['dataset_args']['spec_aug_args'])
 
-            outputs = model(features)  # (embed_a,embed_b) in most cases
+            # When ToMe pack is on, frontend returns (B, L, T) mask; pass to backend
+            if feats_mask is not None:
+                outputs = model(features, mask=feats_mask)
+            else:
+                outputs = model(features)
             embeds = outputs[-1] if isinstance(outputs, tuple) else outputs
             outputs = model.module.projection(embeds, targets)
             if isinstance(outputs, tuple):

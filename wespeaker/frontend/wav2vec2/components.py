@@ -1374,25 +1374,43 @@ class Transformer(Module):
         position_bias: Optional[Tensor] = None,
         current_iter: Optional[int] = None,
         lengths: Optional[Tensor] = None,
-    ) -> List[Tensor]:
+    ) -> Tuple[List[Tensor], Optional[List[Tensor]]]:
+        """Return layer outputs and per-layer valid lengths (for pack mode).
+
+        When ToMe is enabled with pack, sequence length changes per layer.
+        layer_lengths is a list of (B,) tensors, one per layer; used by
+        frontend to build mask. When tome_blocks is None, layer_lengths is None.
+        """
         if num_layers is not None:
             if not 0 < num_layers <= len(self.layers):
                 raise ValueError(f"`num_layers` must be between [1, {len(self.layers)}]")
 
         ret: List[Tensor] = []
+        # Per-layer valid length (B,) for each layer; only set when tome_blocks is not None
+        layer_lengths: Optional[List[Tensor]] = None if self.tome_blocks is None else []
+
         x = self._preprocess(x)
-        
+        batch_size = x.shape[0]
+        device = x.device
+
+        def _current_lengths() -> Tensor:
+            if lengths is not None:
+                return lengths.clone()
+            return torch.full((batch_size,), x.shape[1], device=device, dtype=torch.long)
+
+        if layer_lengths is not None:
+            layer_lengths.append(_current_lengths())
         ret.append(x)
-        
+
         # Convert attention_mask to 1D mask format for ToMe if needed
         tome_mask_1d = None
         if attention_mask is not None and lengths is not None:
             batch_size, _, seq_len, _ = attention_mask.shape
             tome_mask_1d = torch.arange(seq_len, device=lengths.device).expand(batch_size, seq_len) < lengths[:, None]
-        
+
         for layer_idx, layer in enumerate(self.layers):
             x, position_bias = layer(x, attention_mask, position_bias=position_bias, current_iter=current_iter)
-            
+
             # Apply ToMe packing after specified layers
             if self.tome_blocks is not None and layer_idx in self.tome_insert_layers:
                 tome_idx = self.tome_insert_layers.index(layer_idx)
@@ -1401,15 +1419,15 @@ class Transformer(Module):
                     if tome_block is not None:
                         x_packed, new_mask_1d, tome_info = tome_block(x, attn_mask=tome_mask_1d)
                         x = x_packed
-                        
+
                         # Store keep ratios for FLOPs calculation
                         exp_keep_ratio = float(tome_info.get('avg_keep_ratio_exp', 1.0))
                         hard_keep_ratio = float(tome_info.get('avg_keep_ratio_hard', 1.0))
-                        
+
                         if self._last_tome_keep_ratios is None:
                             self._last_tome_keep_ratios = [None] * len(self.tome_insert_layers)
                             self._last_tome_keep_ratios_exp = [None] * len(self.tome_insert_layers)
-                        
+
                         self._last_tome_keep_ratios[tome_idx] = hard_keep_ratio
                         self._last_tome_keep_ratios_exp[tome_idx] = exp_keep_ratio
                         if new_mask_1d is not None:
@@ -1429,15 +1447,17 @@ class Transformer(Module):
                                         new_attention_mask[b, :, :, valid_len:] = float("-inf")
                                         new_attention_mask[b, :, valid_len:, :] = float("-inf")
                                 attention_mask = new_attention_mask
-                            
+
                             # Reset position_bias to None so it will be recomputed with new sequence length
                             if position_bias is not None:
                                 position_bias = None
-            
+
+            if layer_lengths is not None:
+                layer_lengths.append(_current_lengths())
             ret.append(x)
             if num_layers is not None and len(ret) >= num_layers:
-                return ret
-        return ret
+                return (ret, layer_lengths)
+        return (ret, layer_lengths)
     
     def get_num_params(self):
         """Compute number of parameters considering pruning.
@@ -1617,14 +1637,14 @@ class Encoder(Module):
         lengths: Optional[Tensor] = None,
         num_layers: Optional[int] = None,
         current_iter: Optional[int] = None,
-    ) -> List[Tensor]:
+    ) -> Tuple[List[Tensor], Optional[List[Tensor]]]:
+        """Returns (layer outputs, per-layer lengths or None)."""
         x, masks = self._preprocess(features, lengths)
-        interm = self.transformer.get_intermediate_outputs(
-            x, attention_mask=masks, num_layers=num_layers, 
+        interm, layer_lengths = self.transformer.get_intermediate_outputs(
+            x, attention_mask=masks, num_layers=num_layers,
             current_iter=current_iter, lengths=lengths
         )
-        # return [x] + interm
-        return interm
+        return (interm, layer_lengths)
     
     def get_num_params(self, in_features):
         """Calculate the current model size considering pruning.
