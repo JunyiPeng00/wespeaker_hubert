@@ -40,6 +40,10 @@ class GradMultiply(torch.autograd.Function):
         return grad * ctx.scale, None
 
 
+# Small constant for safe renormalization when masking (avoid div-by-zero)
+_EPS = 1e-9
+
+
 class SSL_BACKEND_MHFA(nn.Module):
 
     def __init__(self,
@@ -91,9 +95,9 @@ class SSL_BACKEND_MHFA(nn.Module):
             # Broadcast: mask (B, L, T) -> (B, 1, T, L) to match x (B, D, T, L)
             layer_mask = mask.permute(0, 2, 1).unsqueeze(1)  # (B, 1, T, L)
             w_k_masked = w_k * layer_mask
-            w_k_masked = w_k_masked / (w_k_masked.sum(dim=-1, keepdim=True) + 1e-9)
+            w_k_masked = w_k_masked / (w_k_masked.sum(dim=-1, keepdim=True) + _EPS)
             w_v_masked = w_v * layer_mask
-            w_v_masked = w_v_masked / (w_v_masked.sum(dim=-1, keepdim=True) + 1e-9)
+            w_v_masked = w_v_masked / (w_v_masked.sum(dim=-1, keepdim=True) + _EPS)
             k = (x * w_k_masked).sum(dim=-1).transpose(1, 2)   # (B, T, D)
             v = (x * w_v_masked).sum(dim=-1).transpose(1, 2)
         else:
@@ -119,7 +123,7 @@ class SSL_BACKEND_MHFA(nn.Module):
         att_w = nn.functional.softmax(att_k, dim=1)  # B, T, H
         if frame_mask is not None:
             att_w = att_w * frame_mask.unsqueeze(-1)
-            att_w = att_w / (att_w.sum(dim=1, keepdim=True) + 1e-9)
+            att_w = att_w / (att_w.sum(dim=1, keepdim=True) + _EPS)
 
         # Adjust dimensions for computing attention output
         v = v.unsqueeze(-2)  # B, T, 1

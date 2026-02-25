@@ -240,20 +240,20 @@ class HuggingfaceFrontend(nn.Module):
         else:
             ssl_hiddens, _, layer_lengths = out
 
-        # Check if we have variable length across layers (ToMe pack)
-        need_mask = False
-        if layer_lengths is not None and len(layer_lengths) == len(ssl_hiddens):
-            max_t = max(h.shape[1] for h in ssl_hiddens)
-            min_t = min(h.shape[1] for h in ssl_hiddens)
-            need_mask = max_t != min_t
+        # Single pass over layer time dims: avoid repeated max/min over list
+        layer_t_dims = [h.shape[1] for h in ssl_hiddens]
+        max_T = max(layer_t_dims)
+        need_mask = (
+            layer_lengths is not None
+            and len(layer_lengths) == len(ssl_hiddens)
+            and max_T != min(layer_t_dims)
+        )
 
         if not need_mask:
-            # Same length: stack and return as before
             layer_reps = torch.stack(ssl_hiddens, dim=0).permute(1, 3, 2, 0)
             return layer_reps, None
 
-        # Variable length: pad to max_T, then stack; build mask (B, L, T_max)
-        max_T = max(h.shape[1] for h in ssl_hiddens)
+        # Variable length (ToMe pack): pad to max_T, stack, build mask (B, L, T_max) in one shot
         B, _, D = ssl_hiddens[0].shape
         L = len(ssl_hiddens)
         device = ssl_hiddens[0].device
@@ -262,16 +262,14 @@ class HuggingfaceFrontend(nn.Module):
         for h in ssl_hiddens:
             T = h.shape[1]
             if T < max_T:
-                pad = torch.zeros(B, max_T - T, D, device=device, dtype=dtype)
-                h = torch.cat([h, pad], dim=1)
+                h = torch.cat([h, torch.zeros(B, max_T - T, D, device=device, dtype=dtype)], dim=1)
             padded.append(h)
         layer_reps = torch.stack(padded, dim=0).permute(1, 3, 2, 0)  # (B, D, T_max, L)
 
-        # mask[b, l, t] = 1 if t < layer_lengths[l][b]
-        mask = torch.zeros(B, L, max_T, device=device, dtype=dtype)
-        t_grid = torch.arange(max_T, device=device)
-        for l in range(L):
-            mask[:, l, :] = (t_grid.unsqueeze(0) < layer_lengths[l].unsqueeze(1)).to(dtype)
+        # Vectorized mask: (B, L) lengths, (max_T,) grid -> (B, L, max_T), 1=valid 0=pad
+        lengths_bl = torch.stack(layer_lengths, dim=1)  # (B, L)
+        t_grid = torch.arange(max_T, device=device, dtype=torch.long)
+        mask = (t_grid.unsqueeze(0).unsqueeze(0) < lengths_bl.unsqueeze(2)).to(dtype)
         return layer_reps, mask
 
     def get_num_params(self) -> int:

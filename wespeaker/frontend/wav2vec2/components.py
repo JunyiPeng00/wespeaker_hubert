@@ -20,6 +20,26 @@ from .pruning_utils import (
     prune_layer_norm,
 )
 
+# Default HardConcrete config for pruning (conservative init for training stability).
+# init_mean: retain probability; lower = more pruning. Use 0.01 for heads/layers/conv, 0.01 for FF intermediate.
+DEFAULT_HARD_CONCRETE_CONFIG = {
+    "init_mean": 0.01,
+    "init_std": 0.01,
+    "temperature": 1.0,
+    "min_temperature": 0.1,
+    "temperature_decay": 0.95,
+    "temperature_decay_freq": 100,
+}
+
+
+def _merge_hard_concrete_config(overrides: Optional[dict]) -> dict:
+    """Merge user overrides with DEFAULT_HARD_CONCRETE_CONFIG. Used by ConvLayerBlock, SelfAttention, FeedForward."""
+    cfg = dict(DEFAULT_HARD_CONCRETE_CONFIG)
+    if overrides:
+        cfg.update(overrides)
+    return cfg
+
+
 # Optional import for ToMe packing
 try:
     from .diff_tome_packing import SpeechToMePackingBlock
@@ -96,17 +116,16 @@ class ConvLayerBlock(Module):
         )
 
         # Create pruning gate for conv channels - CNN Encoder uses STATIC pruning only
-        # This ensures stable sparsity calculation and avoids dynamic pruning issues
         if prune_conv_channels:
-            # Always use standard Hard Concrete for CNN layers (static pruning only)
-            config = hard_concrete_config or {}
+            config = _merge_hard_concrete_config(hard_concrete_config)
             self.hard_concrete = HardConcrete(
-                n_in=out_channels, 
-                init_mean=config.get('init_mean', 0.01),
-                temperature=config.get('temperature', 1.0),
-                min_temperature=config.get('min_temperature', 0.1),
-                temperature_decay=config.get('temperature_decay', 0.95),
-                temperature_decay_freq=config.get('temperature_decay_freq', 100)
+                n_in=out_channels,
+                init_mean=config["init_mean"],
+                init_std=config["init_std"],
+                temperature=config["temperature"],
+                min_temperature=config["min_temperature"],
+                temperature_decay=config["temperature_decay"],
+                temperature_decay_freq=config["temperature_decay_freq"],
             )
         else:
             self.hard_concrete = None
@@ -505,30 +524,31 @@ class SelfAttention(Module):
         self.q_proj = nn.Linear(embed_dim, num_heads * head_dim, bias=True)
         self.out_proj = nn.Linear(num_heads * head_dim, embed_dim, bias=True)
 
-        # Create pruning gate for heads
+        # Create pruning gate for heads and layer
         if prune_heads:
-            config = hard_concrete_config or {}
+            config = _merge_hard_concrete_config(hard_concrete_config)
             self.hard_concrete_for_heads = HardConcrete(
-                n_in=num_heads, 
-                init_mean=config.get('init_mean', 0.01),
-                temperature=config.get('temperature', 1.0),
-                min_temperature=config.get('min_temperature', 0.1),
-                temperature_decay=config.get('temperature_decay', 0.95),
-                temperature_decay_freq=config.get('temperature_decay_freq', 100)
+                n_in=num_heads,
+                init_mean=config["init_mean"],
+                init_std=config["init_std"],
+                temperature=config["temperature"],
+                min_temperature=config["min_temperature"],
+                temperature_decay=config["temperature_decay"],
+                temperature_decay_freq=config["temperature_decay_freq"],
             )
         else:
             self.hard_concrete_for_heads = None
 
-        # Create pruning gate for layer
         if prune_layer:
-            config = hard_concrete_config or {}
+            config = _merge_hard_concrete_config(hard_concrete_config)
             self.hard_concrete_for_layer = HardConcrete(
-                n_in=1, 
-                init_mean=config.get('init_mean', 0.01),
-                temperature=config.get('temperature', 1.0),
-                min_temperature=config.get('min_temperature', 0.1),
-                temperature_decay=config.get('temperature_decay', 0.95),
-                temperature_decay_freq=config.get('temperature_decay_freq', 100)
+                n_in=1,
+                init_mean=config["init_mean"],
+                init_std=config["init_std"],
+                temperature=config["temperature"],
+                min_temperature=config["min_temperature"],
+                temperature_decay=config["temperature_decay"],
+                temperature_decay_freq=config["temperature_decay_freq"],
             )
         else:
             self.hard_concrete_for_layer = None
@@ -961,30 +981,31 @@ class FeedForward(Module):
         self.output_dense = nn.Linear(intermediate_features, io_features)
         self.output_dropout = nn.Dropout(output_dropout)
 
-        # Create pruning gate for intermediate
+        # Create pruning gate for intermediate and layer (same default config for stability)
         if prune_intermediate:
-            config = hard_concrete_config or {}
+            config = _merge_hard_concrete_config(hard_concrete_config)
             self.hard_concrete_for_intermediate = HardConcrete(
-                n_in=intermediate_features, 
-                init_mean=config.get('init_mean', 0.5),
-                temperature=config.get('temperature', 1.0),
-                min_temperature=config.get('min_temperature', 0.1),
-                temperature_decay=config.get('temperature_decay', 0.95),
-                temperature_decay_freq=config.get('temperature_decay_freq', 100)
+                n_in=intermediate_features,
+                init_mean=config["init_mean"],
+                init_std=config["init_std"],
+                temperature=config["temperature"],
+                min_temperature=config["min_temperature"],
+                temperature_decay=config["temperature_decay"],
+                temperature_decay_freq=config["temperature_decay_freq"],
             )
         else:
             self.hard_concrete_for_intermediate = None
-        
-        # Create pruning gate for layer
+
         if prune_layer:
-            config = hard_concrete_config or {}
+            config = _merge_hard_concrete_config(hard_concrete_config)
             self.hard_concrete_for_layer = HardConcrete(
-                n_in=1, 
-                init_mean=config.get('init_mean', 0.01),
-                temperature=config.get('temperature', 1.0),
-                min_temperature=config.get('min_temperature', 0.1),
-                temperature_decay=config.get('temperature_decay', 0.95),
-                temperature_decay_freq=config.get('temperature_decay_freq', 100)
+                n_in=1,
+                init_mean=config["init_mean"],
+                init_std=config["init_std"],
+                temperature=config["temperature"],
+                min_temperature=config["min_temperature"],
+                temperature_decay=config["temperature_decay"],
+                temperature_decay_freq=config["temperature_decay_freq"],
             )
         else:
             self.hard_concrete_for_layer = None
@@ -1274,9 +1295,25 @@ class Transformer(Module):
         self.tome_insert_layers = tome_insert_layers if tome_insert_layers is not None else []  # Which layer indices to insert ToMe after
         
         # Store keep ratios from last forward pass (for FLOPs calculation in training)
-        # Use regular attributes (not buffers) since we store Python floats
         self._last_tome_keep_ratios: Optional[List[float]] = None
         self._last_tome_keep_ratios_exp: Optional[List[float]] = None
+
+    @staticmethod
+    def _attention_mask_from_lengths(
+        batch_size: int,
+        seq_len: int,
+        lengths: Tensor,
+        device: torch.device,
+        dtype: torch.dtype,
+    ) -> Tensor:
+        """Build [B, 1, T, T] attention mask with -inf for padded positions."""
+        mask = torch.zeros(batch_size, 1, seq_len, seq_len, device=device, dtype=dtype)
+        for b in range(batch_size):
+            valid_len = int(lengths[b].item())
+            if valid_len < seq_len:
+                mask[b, :, :, valid_len:] = float("-inf")
+                mask[b, :, valid_len:, :] = float("-inf")
+        return mask
 
     def _preprocess(self, x: Tensor):
         x = x + self.pos_conv_embed(x)
@@ -1341,21 +1378,11 @@ class Transformer(Module):
                                 # Update lengths based on new mask
                                 lengths = new_mask_1d.sum(dim=1).long()
                             
-                            # Reconstruct attention_mask from new_mask_1d
-                            if attention_mask is not None:
-                                batch_size, new_seq_len, embed_dim = x.shape
-                                # Create new attention mask: [B, 1, T', T']
-                                new_attention_mask = torch.zeros(
-                                    batch_size, 1, new_seq_len, new_seq_len,
-                                    device=x.device, dtype=attention_mask.dtype
+                            if attention_mask is not None and lengths is not None:
+                                batch_size, new_seq_len, _ = x.shape
+                                attention_mask = self._attention_mask_from_lengths(
+                                    batch_size, new_seq_len, lengths, x.device, attention_mask.dtype
                                 )
-                                # Set padding positions to -inf
-                                for b in range(batch_size):
-                                    valid_len = int(lengths[b].item()) if lengths is not None else new_seq_len
-                                    if valid_len < new_seq_len:
-                                        new_attention_mask[b, :, :, valid_len:] = float("-inf")
-                                        new_attention_mask[b, :, valid_len:, :] = float("-inf")
-                                attention_mask = new_attention_mask
                             
                             # Reset position_bias to None so it will be recomputed with new sequence length
                             # This is important for WavLM which uses relative position embeddings
@@ -1434,21 +1461,11 @@ class Transformer(Module):
                             tome_mask_1d = new_mask_1d
                             if lengths is not None:
                                 lengths = new_mask_1d.sum(dim=1).long()
-                            # Reconstruct attention_mask
-                            if attention_mask is not None:
-                                batch_size, new_seq_len, embed_dim = x.shape
-                                new_attention_mask = torch.zeros(
-                                    batch_size, 1, new_seq_len, new_seq_len,
-                                    device=x.device, dtype=attention_mask.dtype
+                            if attention_mask is not None and lengths is not None:
+                                batch_size, new_seq_len, _ = x.shape
+                                attention_mask = self._attention_mask_from_lengths(
+                                    batch_size, new_seq_len, lengths, x.device, attention_mask.dtype
                                 )
-                                for b in range(batch_size):
-                                    valid_len = int(lengths[b].item()) if lengths is not None else new_seq_len
-                                    if valid_len < new_seq_len:
-                                        new_attention_mask[b, :, :, valid_len:] = float("-inf")
-                                        new_attention_mask[b, :, valid_len:, :] = float("-inf")
-                                attention_mask = new_attention_mask
-
-                            # Reset position_bias to None so it will be recomputed with new sequence length
                             if position_bias is not None:
                                 position_bias = None
 

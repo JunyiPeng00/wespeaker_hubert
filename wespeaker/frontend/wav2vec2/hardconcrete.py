@@ -45,7 +45,7 @@ class HardConcrete(nn.Module):
         
         Args:
             n_in: The number of hard concrete variables in this mask.
-            init_mean: Initial drop rate for hard concrete parameter (0.0 to 1.0).
+            init_mean: Initial retain probability (0.0–1.0). Lower => more pruning at start (e.g. 0.01 for conservative).
             init_std: Standard deviation for initializing hard concrete parameters.
             temperature: Initial temperature parameter controlling distribution sharpness.
                 Lower values make the distribution more peaked (closer to binary).
